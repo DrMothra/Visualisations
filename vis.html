@@ -77,7 +77,28 @@
         //Populate the environment
         generateData();
 
+        //Add sprite
+        /*
+        var texture =  new THREE.ImageUtils.loadTexture("images/vis5.jpg");
+        //texture.needsUpdate = true;
+        var spriteMaterial = new THREE.SpriteMaterial({
+                    color: 0xffffff,
+                    transparent: false,
+                    useScreenCoordinates: false,
+                    alignment: THREE.SpriteAlignment.bottomCenter,
+                    map: texture}
+        );
+        //spriteMaterial.alignment = ;
+        //spriteMaterial.scaleByViewport = true;
+        //spriteMaterial.blending = THREE.AdditiveBlending;
+        var sprite = new THREE.Sprite(spriteMaterial);
+        var size = 10;
+        sprite.scale.set(size, size, 1);
+        sprite.position.set(50, 50, 0);
+        //sprite.velocityX = 15;
 
+        scene.add(sprite);
+        */
 
         var ambientLight = new THREE.AmbientLight(0x383838);
         scene.add(ambientLight);
@@ -165,27 +186,69 @@
                 nodes[i].position.y = data[i].recip - 50;
                 nodes[i].position.z = 0;
                 scene.add(nodes[i]);
-                generateLabel(nodes[i].position);
+                generateLabel(nodes[i].name, nodes[i].position);
             }
 
         }
 
-        function generateLabel(position) {
-            var texture =  new THREE.ImageUtils.loadTexture("images/label.png");
+        function generateLabel(name, position) {
+            var fontface = "Arial";
+            var fontsize = 24;
+            var borderThickness = 4;
+            var borderColor = { r:0, g:0, b:0, a:1.0 };
+            var backgroundColor = { r:255, g:255, b:255, a:1.0 };
+
+            var canvas = document.createElement('canvas');
+            var context = canvas.getContext('2d');
+            context.font = fontsize + "px " + fontface;
+            var textWidth = context.measureText(name).width;
+            canvas.width = textWidth + 50;
+            canvas.height = fontsize + 50;
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+
+            context.fillStyle = backgroundColor;
+            context.fillRect(canvas.width / 2 - textWidth / 2 - 50 / 2, canvas.height / 2 - fontsize / 2 - +50 / 2, textWidth + 50, fontsize + 50);
+
+            context.fillStyle = borderColor;
+            context.fillText(name, canvas.width / 2, canvas.height / 2);
+
+            //context.font = fontsize + "px " + fontface;
+
+             // background color
+            /*
+            context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
+                    + backgroundColor.b + "," + backgroundColor.a + ")";
+            // border color
+            context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
+                    + borderColor.b + "," + borderColor.a + ")";
+
+            context.lineWidth = borderThickness;
+            */
+            // text color
+            //context.fillStyle = "rgba(0, 0, 0, 1.0)";
+
+            //context.fillText( name, borderThickness, fontsize + borderThickness);
+            //context.strokeText( "Test", 10, 10);
+
+            // canvas contents will be used for a texture
+            var texture = new THREE.Texture(canvas);
+            //var texture = new THREE.ImageUtils.loadTexture("images/label.png");
+            texture.needsUpdate = true;
+
+            //texture.needsUpdate = true;
             var spriteMaterial = new THREE.SpriteMaterial({
-                        opacity: 0.7,
-                        color: 0xff0000,
-                        transparent: true,
-                        useScreenCoordinates: true,
+                        //color: 0xffffff,
+                        //transparent: false,
+                        useScreenCoordinates: false,
+                        alignment: THREE.SpriteAlignment.bottomCenter,
                         map: texture}
             );
-            spriteMaterial.alignment = THREE.SpriteAlignment.bottomCenter;
-            spriteMaterial.scaleByViewport = true;
-            spriteMaterial.blending = THREE.AdditiveBlending;
+
             var sprite = new THREE.Sprite(spriteMaterial);
-            var size = 100;
-            sprite.scale.set(size, size, size);
-            sprite.position.set(position);
+            var size = 10;
+            sprite.scale.set(size, size, 1);
+            sprite.position.set(position.x, position.y, 0);
             //sprite.velocityX = 15;
 
             scene.add(sprite);
