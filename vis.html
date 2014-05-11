@@ -200,18 +200,21 @@
 
             var canvas = document.createElement('canvas');
             var context = canvas.getContext('2d');
-            context.font = fontsize + "px " + fontface;
-            var textWidth = context.measureText(name).width;
-            canvas.width = textWidth + 50;
-            canvas.height = fontsize + 50;
-            context.textAlign = "center";
-            context.textBaseline = "middle";
+            //context.font = fontsize + "px " + fontface;
+            //var textWidth = context.measureText(name).width;
+            canvas.width = 100;
+            canvas.height = 100;
+            //context.textAlign = "center";
+            //context.textBaseline = "middle";
 
-            context.fillStyle = backgroundColor;
-            context.fillRect(canvas.width / 2 - textWidth / 2 - 50 / 2, canvas.height / 2 - fontsize / 2 - +50 / 2, textWidth + 50, fontsize + 50);
+            context.fillStyle = 'White';
+            context.fillRect(0, 0, 100, 100);
+            context.fillStyle = 'MediumSlateBlue';
+            context.font = "24px Arial";
+            context.fillText("Test", 10, 10);
 
-            context.fillStyle = borderColor;
-            context.fillText(name, canvas.width / 2, canvas.height / 2);
+            //context.fillStyle = borderColor;
+           // context.fillText(name, canvas.width / 2, canvas.height / 2);
 
             //context.font = fontsize + "px " + fontface;
 
