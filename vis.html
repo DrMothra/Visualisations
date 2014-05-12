@@ -9,19 +9,14 @@
     <script type="text/javascript" src="js/dat.gui.js"></script>
     <script type="text/javascript" src="js/TrackballControls.js"></script>
 
-    <style>
-        body {
-            /* set margin to 0 and overflow to hidden, to go fullscreen */
-            margin: 0;
-            overflow: hidden;
-        }
-    </style>
+    <link href="css/mainStyles.css" rel="stylesheet" type="text/css">
 </head>
 <body>
 
 <div id="Stats-output">
 </div>
 <!-- Div which will hold the Output -->
+<input type="button" value="Load" class="button"/>
 <div id="WebGL-output">
 </div>
 
@@ -36,9 +31,12 @@
 
         //var stats = initStats();
         //Set up data
-        var data = [{ name : "WABI", embed : 98, recip : 98},
-            { name : "Naked House", embed : 50, recip : 5},
-            { name : "Polymorphic", embed : 95, recip : 50}];
+
+        var data = [{ projectName : "WABI", embed : 98, recip : 98},
+            { projectName : "Naked House", embed : 50, recip : 5},
+            { projectName : "Polymorphic", embed : 95, recip : 50}];
+
+        //readDataFile("test.json");
 
         // create a scene, that will hold all our elements such as objects, cameras and lights.
         var scene = new THREE.Scene();
@@ -50,7 +48,7 @@
         // create a render and set the size
         var webGLRenderer = new THREE.WebGLRenderer();
         webGLRenderer.setClearColorHex(0x5f5f5f, 1.0);
-        webGLRenderer.setSize(window.innerWidth, window.innerHeight);
+        webGLRenderer.setSize(1024, 768);
         webGLRenderer.shadowMapEnabled = true;
 
         // position and point the camera to the center of the scene
@@ -77,29 +75,6 @@
         //Populate the environment
         generateData();
 
-        //Add sprite
-        /*
-        var texture =  new THREE.ImageUtils.loadTexture("images/vis5.jpg");
-        //texture.needsUpdate = true;
-        var spriteMaterial = new THREE.SpriteMaterial({
-                    color: 0xffffff,
-                    transparent: false,
-                    useScreenCoordinates: false,
-                    alignment: THREE.SpriteAlignment.bottomCenter,
-                    map: texture}
-        );
-        //spriteMaterial.alignment = ;
-        //spriteMaterial.scaleByViewport = true;
-        //spriteMaterial.blending = THREE.AdditiveBlending;
-        var sprite = new THREE.Sprite(spriteMaterial);
-        var size = 10;
-        sprite.scale.set(size, size, 1);
-        sprite.position.set(50, 50, 0);
-        //sprite.velocityX = 15;
-
-        scene.add(sprite);
-        */
-
         var ambientLight = new THREE.AmbientLight(0x383838);
         scene.add(ambientLight);
 
@@ -111,6 +86,7 @@
 
         // add the output of the renderer to the html element
         $("#WebGL-output").append(webGLRenderer.domElement);
+        console.log("element=", webGLRenderer.domElement);
 
         // call the render function
         var step = 0;
@@ -150,6 +126,52 @@
             }
         });
 
+        function readDataFile(filename) {
+            //See if filesaver api supported
+            if (window.File && window.FileReader && window.FileList && window.Blob) {
+                // All the File APIs are supported.
+                console.log("Reading file...");
+                var files = ['test.json'];
+                var blob = new Blob(files, {type : 'text/plain'}); // the blob
+                //Remove extension
+                //var files = ["test.json"];
+                //filename = files[0];
+
+               // var f = filename;
+
+                var name = blob.name;
+
+                var index = name.lastIndexOf('.');
+                if (index>0)
+                    name = name.substr(0,index);
+                var reader = new FileReader();
+
+                reader.onload = function(evt) {
+                    //File loaded - parse it
+                    console.log('file read: '+evt.target.result);
+                    var jstate = null;
+                    try {
+                        jstate = JSON.parse(evt.target.result);
+                        //restoreState(jstate, mergeFlag);
+                    }
+                    catch (err) {
+                        console.log('error parsing JSON state: '+(err.message ? err.message : err));
+
+                        alert('Sorry, there was a problem reading that file');
+                    }
+                };
+
+                // Read in the file
+                reader.readAsText(name);
+            }
+            else
+                console.log('sorry, file apis not supported');
+
+            var data = [{ projectName : "WABI", embed : 98, recip : 98},
+                { projectName : "Naked House", embed : 50, recip : 5},
+                { projectName : "Polymorphic", embed : 95, recip : 50}];
+        }
+
         function setupAxes() {
             //Create axes
             //Set up common material
@@ -186,53 +208,39 @@
                 nodes[i].position.y = data[i].recip - 50;
                 nodes[i].position.z = 0;
                 scene.add(nodes[i]);
-                generateLabel(nodes[i].name, nodes[i].position);
+                generateLabel(data[i].projectName, nodes[i].position);
             }
 
         }
 
         function generateLabel(name, position) {
             var fontface = "Arial";
-            var fontsize = 24;
-            var borderThickness = 4;
-            var borderColor = { r:0, g:0, b:0, a:1.0 };
-            var backgroundColor = { r:255, g:255, b:255, a:1.0 };
+            var fontSize = 18;
+            var spacing = 10;
 
             var canvas = document.createElement('canvas');
             var context = canvas.getContext('2d');
-            //context.font = fontsize + "px " + fontface;
-            //var textWidth = context.measureText(name).width;
-            canvas.width = 100;
-            canvas.height = 100;
-            //context.textAlign = "center";
-            //context.textBaseline = "middle";
+            var metrics = context.measureText( name );
+            var textWidth = metrics.width;
 
+            //DEBUG
+            console.log("Width=", textWidth);
+
+            canvas.width = textWidth + (spacing * 2);
+            canvas.width *= 2;
+            canvas.height = fontSize + (spacing * 2);
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+
+            //DEBUG
+            console.log("Canvas=", canvas.width, canvas.height);
+
+            context.fillStyle = "rgba(255, 255, 255, 0.0)";
+            context.fillRect(0, 0, canvas.width, canvas.height);
             context.fillStyle = 'White';
-            context.fillRect(0, 0, 100, 100);
-            context.fillStyle = 'MediumSlateBlue';
-            context.font = "24px Arial";
-            context.fillText("Test", 10, 10);
+            context.font = fontSize + "px " + fontface;
 
-            //context.fillStyle = borderColor;
-           // context.fillText(name, canvas.width / 2, canvas.height / 2);
-
-            //context.font = fontsize + "px " + fontface;
-
-             // background color
-            /*
-            context.fillStyle   = "rgba(" + backgroundColor.r + "," + backgroundColor.g + ","
-                    + backgroundColor.b + "," + backgroundColor.a + ")";
-            // border color
-            context.strokeStyle = "rgba(" + borderColor.r + "," + borderColor.g + ","
-                    + borderColor.b + "," + borderColor.a + ")";
-
-            context.lineWidth = borderThickness;
-            */
-            // text color
-            //context.fillStyle = "rgba(0, 0, 0, 1.0)";
-
-            //context.fillText( name, borderThickness, fontsize + borderThickness);
-            //context.strokeText( "Test", 10, 10);
+            context.fillText(name, canvas.width/2, canvas.height/2);
 
             // canvas contents will be used for a texture
             var texture = new THREE.Texture(canvas);
@@ -249,10 +257,10 @@
             );
 
             var sprite = new THREE.Sprite(spriteMaterial);
-            var size = 10;
-            sprite.scale.set(size, size, 1);
+            var scaleX = 20;
+            var scaleY = 15;
+            sprite.scale.set(scaleX, scaleY, 1);
             sprite.position.set(position.x, position.y, 0);
-            //sprite.velocityX = 15;
 
             scene.add(sprite);
         }

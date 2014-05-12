@@ -1,0 +1,7 @@
+/* Styles for webgl visualisations */
+
+.detail {
+    width: 1024px;
+    height: 768px;
+    background-color: #979797;
+}
