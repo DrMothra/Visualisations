@@ -166,11 +166,37 @@ function onSelectFile(evt) {
         alert('sorry, file apis not supported');
 }
 
+function alertContents(request) {
+    if(request.readyState == 4) {
+        console.log("Received request");
+        if(request.status == 200 || request.status == 0) {
+            console.log("Request = ", request.responseText);
+        }
+    }
+}
 //Only executed our code once the DOM is ready.
 $(document).ready(function() {
 
     //GUI callbacks
-    $("#selectFile").on("change", onSelectFile);
+    //$("#selectFile").on("change", onSelectFile);
+    var request = new XMLHttpRequest();
+    request.onreadystatechange = function() {
+        alertContents(request);
+    };
+    request.open("GET", "test.json", true);
+    request.send(null);
+
+    var controls = new function() {
+        this.loadfile = function() {
+            console.log("Pressed loadfile");
+            console.log("Pressed loadfile");
+        };
+        this.filename = 'enter file';
+    };
+
+    var gui = new dat.GUI();
+    gui.add(controls, 'filename');
+    gui.add(controls, 'loadfile');
 
     //Initialise app
     var container = document.getElementById("WebGL-output");

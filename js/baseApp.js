@@ -33,9 +33,9 @@ BaseApp.prototype.init = function(container) {
 BaseApp.prototype.createRenderer = function() {
     this.renderer = new THREE.WebGLRenderer();
     this.renderer.setClearColorHex(0x5f5f5f, 1.0);
-    this.renderer.setSize(1024, 768);
+    //this.renderer.setSize(1024, 768);
     this.renderer.shadowMapEnabled = true;
-    //this.renderer.setSize(window.innerWidth, window.innerHeight);
+    this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild( this.renderer.domElement );
 }
 
@@ -73,7 +73,7 @@ BaseApp.prototype.createCamera = function() {
 }
 
 BaseApp.prototype.createControls = function() {
-    this.controls = new THREE.TrackballControls(this.camera);
+    this.controls = new THREE.TrackballControls(this.camera, this.container);
     this.controls.rotateSpeed = 1.0;
     this.controls.zoomSpeed = 1.0;
     this.controls.panSpeed = 1.0;

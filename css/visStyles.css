@@ -1,7 +1,7 @@
 /* Styles for webgl visualisations */
 
-.detail {
-    width: 1024px;
-    height: 768px;
-    background-color: #979797;
+body {
+    /* set margin to 0 and overflow to hidden, to go fullscreen */
+    margin: 0;
+    overflow: hidden;
 }
