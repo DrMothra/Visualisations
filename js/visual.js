@@ -17,6 +17,7 @@ VisApp.prototype = new BaseApp();
 
 VisApp.prototype.init = function(container) {
     BaseApp.prototype.init.call(this, container);
+    this.data = null;
 };
 
 VisApp.prototype.update = function() {
@@ -30,31 +31,79 @@ VisApp.prototype.createScene = function() {
     addAxes(this.scene);
 };
 
-function addAxes(scene) {
-    //Create axes
-    //Set up common material
+VisApp.prototype.reDraw = function() {
+    //Remove all nodes and labels
+    var main = this;
+    this.scene.traverse(function(obj) {
+        if(obj.name.indexOf("Node") >= 0) {
+            console.log("Found node", obj.name);
+            main.scene.remove(obj);
+        }
+    });
+
+    //this.generateData();
+};
+
+VisApp.prototype.createGUI = function() {
+    //Create GUI - use dat.GUI for now
+    var main = this;
+    var controls = new function() {
+        this.font = 'Arial';
+        this.fontSize = 18;
+        this.scaleX = 10;
+        this.scaleY = 10;
+        this.filename = '';
+        this.loadfile = function() {
+            //Attempt to load given json file
+            if(this.filename.length != 0) {
+                console.log("Loading file", this.filename);
+                var fileRequest = new XMLHttpRequest();
+                fileRequest.onreadystatechange = function() {
+                    main.parseFile(fileRequest);
+                };
+                fileRequest.open("GET", this.filename, true);
+                fileRequest.send(null);
+            }
+        };
+        this.reDraw = function() {
+            main.reDraw();
+        };
+    };
+
+    var gui = new dat.GUI();
+    gui.add(controls, 'filename');
+    gui.add(controls, 'loadfile');
+    gui.add(controls, 'font');
+    gui.add(controls, 'fontSize', 10, 36);
+    gui.add(controls, 'scaleX', 1, 50);
+    gui.add(controls, 'scaleY', 1, 50);
+    gui.add(controls, 'reDraw');
+    this.gui = gui;
+};
+
+VisApp.prototype.generateData = function() {
+    //Create node geometry
+    var sphereGeometry = new THREE.SphereGeometry(1,20,20);
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
 
-    //Add graph axes
-    var axisYHeight = 100;
-    var axisXHeight = 150;
-    var axisWidth = 1;
-    var cylinderY = new THREE.CylinderGeometry(axisWidth/2, axisWidth/2, axisYHeight, 8, 8, false);
-    var cylinderX = new THREE.CylinderGeometry(axisWidth/2, axisWidth/2, axisXHeight, 8, 8, false);
+    var nodes = [];
+    for(var i=0; i<this.data.length; ++i) {
+        nodes.push(new THREE.Mesh(sphereGeometry,material));
+        var item = this.data[i];
+        //Only render nodes with valid embed and recip
+        if(item["Bodily Embeddedness"] >= 0 && item["Bodily Reciprocity"] >= 0) {
+            nodes[i].position.x = item["Bodily Embeddedness"] - 75;
+            nodes[i].position.y = item["Bodily Reciprocity"] - 50;
+            nodes[i].position.z = 0;
+            //Give node a name
+            nodes[i].name = "Node" + i;
+            this.scene.add(nodes[i]);
+            this.generateLabel(item["Project name"], nodes[i].position);
+        }
+    }
+};
 
-    var axisX = new THREE.Mesh(cylinderX, material);
-    var axisY = new THREE.Mesh(cylinderY, material);
-
-    //Orientate axes
-    axisX.rotation.z = -Math.PI/2;
-    axisX.position.set(0, -axisYHeight/2, 0);
-    axisY.position.set(-axisXHeight/2, 0, 0);
-
-    scene.add(axisX);
-    scene.add(axisY);
-}
-
-function generateLabel(name, position) {
+VisApp.prototype.generateLabel = function(name, position) {
     var fontface = "Arial";
     var fontSize = 18;
     var spacing = 10;
@@ -69,7 +118,7 @@ function generateLabel(name, position) {
 
     canvas.width = textWidth + (spacing * 2);
     canvas.width *= 2;
-    canvas.height = fontSize + (spacing * 2);
+    canvas.height = fontSize;
     context.textAlign = "center";
     context.textBaseline = "middle";
 
@@ -98,28 +147,58 @@ function generateLabel(name, position) {
     );
 
     var sprite = new THREE.Sprite(spriteMaterial);
-    var scaleX = 20;
-    var scaleY = 15;
+    var scaleX = 10;
+    var scaleY = 5;
     sprite.scale.set(scaleX, scaleY, 1);
     sprite.position.set(position.x, position.y, 0);
 
-    return sprite;
-}
+    //Give sprite a name
+    sprite.name = "Sprite" + name;
 
-function generateData(data) {
-    //Create node geometry
-    var sphereGeometry = new THREE.SphereGeometry(1,20,20);
+    this.scene.add(sprite);
+};
+
+VisApp.prototype.parseFile = function(fileRequest) {
+    //Attempt to load and parse given json file
+    if(fileRequest.readyState == 4) {
+        console.log("Received request");
+        if(fileRequest.status == 200 || fileRequest.status == 0) {
+            console.log("Request = ", fileRequest.responseText);
+            try {
+                this.data = JSON.parse(fileRequest.responseText);
+                var item = this.data[0];
+                this.generateData();
+            }
+            catch (err) {
+                console.log('error parsing JSON file', err);
+                alert('Sorry, there was a problem reading that file');
+            }
+        }
+    }
+};
+
+function addAxes(scene) {
+    //Create axes;
+    //Set up common material
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
 
-    var nodes = [];
-    for(var i=0; i<data.length; ++i) {
-        nodes.push(new THREE.Mesh(sphereGeometry,material));
-        nodes[i].position.x = data[i].embed - 75;
-        nodes[i].position.y = data[i].recip - 50;
-        nodes[i].position.z = 0;
-        scene.add(nodes[i]);
-        generateLabel(data[i].projectName, nodes[i].position);
-    }
+    //Add graph axes
+    var axisYHeight = 100;
+    var axisXHeight = 150;
+    var axisWidth = 1;
+    var cylinderY = new THREE.CylinderGeometry(axisWidth/2, axisWidth/2, axisYHeight, 8, 8, false);
+    var cylinderX = new THREE.CylinderGeometry(axisWidth/2, axisWidth/2, axisXHeight, 8, 8, false);
+
+    var axisX = new THREE.Mesh(cylinderX, material);
+    var axisY = new THREE.Mesh(cylinderY, material);
+
+    //Orientate axes
+    axisX.rotation.z = -Math.PI/2;
+    axisX.position.set(0, -axisYHeight/2, 0);
+    axisY.position.set(-axisXHeight/2, 0, 0);
+
+    scene.add(axisX);
+    scene.add(axisY);
 }
 
 function readDataFile() {
@@ -133,14 +212,7 @@ function readDataFile() {
         //File loaded - parse it
         console.log('file read: '+evt.target.result);
         var data = null;
-        try {
-            data = JSON.parse(evt.target.result);
-            generateData(data);
-        }
-        catch (err) {
-            console.log('error parsing JSON state: '+(err.message ? err.message : err));
-            alert('Sorry, there was a problem reading that file');
-        }
+
     };
 
     // Read in the file
@@ -166,43 +238,19 @@ function onSelectFile(evt) {
         alert('sorry, file apis not supported');
 }
 
-function alertContents(request) {
-    if(request.readyState == 4) {
-        console.log("Received request");
-        if(request.status == 200 || request.status == 0) {
-            console.log("Request = ", request.responseText);
-        }
-    }
-}
 //Only executed our code once the DOM is ready.
 $(document).ready(function() {
 
     //GUI callbacks
     //$("#selectFile").on("change", onSelectFile);
-    var request = new XMLHttpRequest();
-    request.onreadystatechange = function() {
-        alertContents(request);
-    };
-    request.open("GET", "test.json", true);
-    request.send(null);
 
-    var controls = new function() {
-        this.loadfile = function() {
-            console.log("Pressed loadfile");
-            console.log("Pressed loadfile");
-        };
-        this.filename = 'enter file';
-    };
-
-    var gui = new dat.GUI();
-    gui.add(controls, 'filename');
-    gui.add(controls, 'loadfile');
 
     //Initialise app
     var container = document.getElementById("WebGL-output");
     var app = new VisApp();
     app.init(container);
     app.createScene();
+    app.createGUI();
     app.run();
 
     //Init stats of required
