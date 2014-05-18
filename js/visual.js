@@ -18,6 +18,9 @@ VisApp.prototype = new BaseApp();
 VisApp.prototype.init = function(container) {
     BaseApp.prototype.init.call(this, container);
     this.data = null;
+    this.nodesRendered = 0;
+    this.spritesRendered = 0;
+    this.guiControls = null;
 };
 
 VisApp.prototype.update = function() {
@@ -33,25 +36,30 @@ VisApp.prototype.createScene = function() {
 
 VisApp.prototype.reDraw = function() {
     //Remove all nodes and labels
-    var main = this;
-    this.scene.traverse(function(obj) {
-        if(obj.name.indexOf("Node") >= 0) {
-            console.log("Found node", obj.name);
-            main.scene.remove(obj);
+    while(this.nodesRendered--) {
+        var node = this.scene.getObjectByName("Node"+this.nodesRendered);
+        if(node) {
+            this.scene.remove(node);
         }
-    });
+    }
 
-    //this.generateData();
+    while(this.spritesRendered--) {
+        var label = this.scene.getObjectByName("Sprite"+this.spritesRendered);
+        if(label) {
+            this.scene.remove(label);
+        }
+    }
+    this.generateData();
 };
 
 VisApp.prototype.createGUI = function() {
     //Create GUI - use dat.GUI for now
     var main = this;
-    var controls = new function() {
+    this.guiControls = new function() {
         this.font = 'Arial';
         this.fontSize = 18;
         this.scaleX = 10;
-        this.scaleY = 10;
+        this.scaleY = 5;
         this.filename = '';
         this.loadfile = function() {
             //Attempt to load given json file
@@ -68,16 +76,18 @@ VisApp.prototype.createGUI = function() {
         this.reDraw = function() {
             main.reDraw();
         };
+        this.year = 2014;
     };
 
     var gui = new dat.GUI();
-    gui.add(controls, 'filename');
-    gui.add(controls, 'loadfile');
-    gui.add(controls, 'font');
-    gui.add(controls, 'fontSize', 10, 36);
-    gui.add(controls, 'scaleX', 1, 50);
-    gui.add(controls, 'scaleY', 1, 50);
-    gui.add(controls, 'reDraw');
+    gui.add(this.guiControls, 'filename');
+    gui.add(this.guiControls, 'loadfile');
+    gui.add(this.guiControls, 'font');
+    gui.add(this.guiControls, 'fontSize', 10, 36);
+    gui.add(this.guiControls, 'scaleX', 1, 50);
+    gui.add(this.guiControls, 'scaleY', 1, 50);
+    gui.add(this.guiControls, 'year', 1900, 2014);
+    gui.add(this.guiControls, 'reDraw');
     this.gui = gui;
 };
 
@@ -88,24 +98,28 @@ VisApp.prototype.generateData = function() {
 
     var nodes = [];
     for(var i=0; i<this.data.length; ++i) {
-        nodes.push(new THREE.Mesh(sphereGeometry,material));
-        var item = this.data[i];
         //Only render nodes with valid embed and recip
+        var item = this.data[i];
         if(item["Bodily Embeddedness"] >= 0 && item["Bodily Reciprocity"] >= 0) {
-            nodes[i].position.x = item["Bodily Embeddedness"] - 75;
-            nodes[i].position.y = item["Bodily Reciprocity"] - 50;
-            nodes[i].position.z = 0;
-            //Give node a name
-            nodes[i].name = "Node" + i;
-            this.scene.add(nodes[i]);
-            this.generateLabel(item["Project name"], nodes[i].position);
+
+            //Do any other checks
+            if(item["Year"] <= this.guiControls.year) {
+                var node = new THREE.Mesh(sphereGeometry, material);
+                node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
+                node.position.y = item["Bodily Reciprocity"] - 50;
+                node.position.z = 0;
+                //Give node a name
+                node.name = "Node" + this.nodesRendered++;
+                nodes.push(node);
+                this.scene.add(node);
+                this.generateLabel(item["Project name"], node.position);
+            }
         }
     }
 };
 
 VisApp.prototype.generateLabel = function(name, position) {
     var fontface = "Arial";
-    var fontSize = 18;
     var spacing = 10;
 
     var canvas = document.createElement('canvas');
@@ -113,22 +127,16 @@ VisApp.prototype.generateLabel = function(name, position) {
     var metrics = context.measureText( name );
     var textWidth = metrics.width;
 
-    //DEBUG
-    console.log("Width=", textWidth);
-
     canvas.width = textWidth + (spacing * 2);
     canvas.width *= 2;
-    canvas.height = fontSize;
+    canvas.height = this.guiControls.fontSize;
     context.textAlign = "center";
     context.textBaseline = "middle";
-
-    //DEBUG
-    console.log("Canvas=", canvas.width, canvas.height);
 
     context.fillStyle = "rgba(255, 255, 255, 0.0)";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = 'White';
-    context.font = fontSize + "px " + fontface;
+    context.font = this.guiControls.fontSize + "px " + fontface;
 
     context.fillText(name, canvas.width/2, canvas.height/2);
 
@@ -147,13 +155,14 @@ VisApp.prototype.generateLabel = function(name, position) {
     );
 
     var sprite = new THREE.Sprite(spriteMaterial);
-    var scaleX = 10;
-    var scaleY = 5;
+    var scaleX = this.guiControls.scaleX;
+    var scaleY = this.guiControls.scaleY;
+
     sprite.scale.set(scaleX, scaleY, 1);
     sprite.position.set(position.x, position.y, 0);
 
     //Give sprite a name
-    sprite.name = "Sprite" + name;
+    sprite.name = "Sprite" + this.spritesRendered++;
 
     this.scene.add(sprite);
 };
