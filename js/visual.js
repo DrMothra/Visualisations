@@ -8,6 +8,21 @@ $(document).keydown(function(ev) {
     }
 });
 
+function eliminateDuplicates(arr) {
+    var i,
+        len=arr.length,
+        out=[],
+        obj={};
+
+    for (i=0;i<len;i++) {
+        obj[arr[i]]=0;
+    }
+    for (i in obj) {
+        out.push(i);
+    }
+    return out;
+}
+
 //Init this app from base
 function VisApp() {
     BaseApp.call(this);
@@ -21,6 +36,9 @@ VisApp.prototype.init = function(container) {
     this.nodesRendered = 0;
     this.spritesRendered = 0;
     this.guiControls = null;
+    //Always have appearance and data folders to gui
+    this.guiAppear = null;
+    this.guiData = null;
 };
 
 VisApp.prototype.update = function() {
@@ -42,6 +60,7 @@ VisApp.prototype.reDraw = function() {
             this.scene.remove(node);
         }
     }
+    this.nodesRendered = 0;
 
     while(this.spritesRendered--) {
         var label = this.scene.getObjectByName("Sprite"+this.spritesRendered);
@@ -49,6 +68,8 @@ VisApp.prototype.reDraw = function() {
             this.scene.remove(label);
         }
     }
+    this.spritesRendered = 0;
+
     this.generateData();
 };
 
@@ -61,7 +82,7 @@ VisApp.prototype.createGUI = function() {
         this.scaleX = 10;
         this.scaleY = 5;
         this.filename = '';
-        this.loadfile = function() {
+        this.LoadFile = function() {
             //Attempt to load given json file
             if(this.filename.length != 0) {
                 console.log("Loading file", this.filename);
@@ -73,21 +94,24 @@ VisApp.prototype.createGUI = function() {
                 fileRequest.send(null);
             }
         };
-        this.reDraw = function() {
+        this.ReDraw = function() {
             main.reDraw();
         };
         this.year = 2014;
     };
 
     var gui = new dat.GUI();
+    //Folders
     gui.add(this.guiControls, 'filename');
-    gui.add(this.guiControls, 'loadfile');
-    gui.add(this.guiControls, 'font');
-    gui.add(this.guiControls, 'fontSize', 10, 36);
-    gui.add(this.guiControls, 'scaleX', 1, 50);
-    gui.add(this.guiControls, 'scaleY', 1, 50);
-    gui.add(this.guiControls, 'year', 1900, 2014);
-    gui.add(this.guiControls, 'reDraw');
+    gui.add(this.guiControls, 'LoadFile');
+    this.guiAppear = gui.addFolder("Appearance");
+    this.guiAppear.add(this.guiControls, 'font');
+    this.guiAppear.add(this.guiControls, 'fontSize', 10, 36);
+    this.guiAppear.add(this.guiControls, 'scaleX', 1, 50);
+    this.guiAppear.add(this.guiControls, 'scaleY', 1, 50);
+    this.guiData = gui.addFolder("Data");
+    //this.guiData.add(this.guiControls, 'year', 1900, 2014);
+    gui.add(this.guiControls, 'ReDraw');
     this.gui = gui;
 };
 
@@ -101,19 +125,15 @@ VisApp.prototype.generateData = function() {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
         if(item["Bodily Embeddedness"] >= 0 && item["Bodily Reciprocity"] >= 0) {
-
-            //Do any other checks
-            if(item["Year"] <= this.guiControls.year) {
-                var node = new THREE.Mesh(sphereGeometry, material);
-                node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
-                node.position.y = item["Bodily Reciprocity"] - 50;
-                node.position.z = 0;
-                //Give node a name
-                node.name = "Node" + this.nodesRendered++;
-                nodes.push(node);
-                this.scene.add(node);
-                this.generateLabel(item["Project name"], node.position);
-            }
+            var node = new THREE.Mesh(sphereGeometry, material);
+            node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
+            node.position.y = item["Bodily Reciprocity"] - 50;
+            node.position.z = 0;
+            //Give node a name
+            node.name = "Node" + this.nodesRendered++;
+            nodes.push(node);
+            this.scene.add(node);
+            this.generateLabel(item["Project name"], node.position);
         }
     }
 };
@@ -142,7 +162,6 @@ VisApp.prototype.generateLabel = function(name, position) {
 
     // canvas contents will be used for a texture
     var texture = new THREE.Texture(canvas);
-    //var texture = new THREE.ImageUtils.loadTexture("images/label.png");
     texture.needsUpdate = true;
 
     //texture.needsUpdate = true;
@@ -167,6 +186,20 @@ VisApp.prototype.generateLabel = function(name, position) {
     this.scene.add(sprite);
 };
 
+VisApp.prototype.generateGUIControls = function() {
+    //Generate a gui control from each property of the input file
+    var ignoreList = ["Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
+
+    var extra = new function() {
+        this.year = 2014;
+    };
+
+    //this.guiControls.extra = extra;
+    this.guiControls.extra = this.data[0];
+    this.guiData.add(this.guiControls, "year", 1900, 2014);
+    this.guiData.add(this.guiControls, "City");
+};
+
 VisApp.prototype.parseFile = function(fileRequest) {
     //Attempt to load and parse given json file
     if(fileRequest.readyState == 4) {
@@ -175,13 +208,15 @@ VisApp.prototype.parseFile = function(fileRequest) {
             console.log("Request = ", fileRequest.responseText);
             try {
                 this.data = JSON.parse(fileRequest.responseText);
-                var item = this.data[0];
-                this.generateData();
             }
             catch (err) {
                 console.log('error parsing JSON file', err);
                 alert('Sorry, there was a problem reading that file');
+                return;
             }
+            //File parsed OK - generate GUI controls and data
+            this.generateData();
+            this.generateGUIControls();
         }
     }
 };
@@ -208,6 +243,33 @@ function addAxes(scene) {
 
     scene.add(axisX);
     scene.add(axisY);
+
+    //Labelling
+    var options = {
+        size: 2,
+        height: 1,
+        weight: "normal",
+        font: "helvetiker",
+        bevelThickness: 0.2,
+        bevelSize: 0.1,
+        bevelSegments: 2,
+        bevelEnabled: false,
+        curveSegments: 12,
+        steps: 1
+    };
+
+    var textGeom = new THREE.TextGeometry("Embed", options);
+    var xAxisText = new THREE.Mesh(textGeom, material);
+    xAxisText.position.x = 80;
+    xAxisText.position.y = -50;
+    xAxisText.position.z = 0;
+    scene.add(xAxisText);
+    textGeom = new THREE.TextGeometry("Recip", options);
+    xAxisText = new THREE.Mesh(textGeom, material);
+    xAxisText.position.x = -77.5;
+    xAxisText.position.y = 52.5;
+    xAxisText.position.z = 0;
+    scene.add(xAxisText);
 }
 
 function readDataFile() {
