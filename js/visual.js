@@ -97,7 +97,6 @@ VisApp.prototype.createGUI = function() {
         this.ReDraw = function() {
             main.reDraw();
         };
-        this.year = 2014;
     };
 
     var gui = new dat.GUI();
@@ -110,7 +109,6 @@ VisApp.prototype.createGUI = function() {
     this.guiAppear.add(this.guiControls, 'scaleX', 1, 50);
     this.guiAppear.add(this.guiControls, 'scaleY', 1, 50);
     this.guiData = gui.addFolder("Data");
-    //this.guiData.add(this.guiControls, 'year', 1900, 2014);
     gui.add(this.guiControls, 'ReDraw');
     this.gui = gui;
 };
@@ -190,14 +188,21 @@ VisApp.prototype.generateGUIControls = function() {
     //Generate a gui control from each property of the input file
     var ignoreList = ["Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
 
-    var extra = new function() {
-        this.year = 2014;
-    };
+    //Get UI controls to add
+    var guiLabels = [];
+    var item = this.data[0];
+    for(var key in item) {
+        guiLabels.push(key);
+        console.log("item =", item[key]);
 
-    //this.guiControls.extra = extra;
+    }
     this.guiControls.extra = this.data[0];
-    this.guiData.add(this.guiControls, "year", 1900, 2014);
-    this.guiData.add(this.guiControls, "City");
+    //for(var item=0; item<guiLabels.length; ++item){
+    //    this.guiData.add(this.guiControls.extra, guiLabels[item].toString());
+    //}
+    var values = ["", "tony", "hello", "forest"];
+    this.guiControls.options = "";
+    this.guiData.add(this.guiControls, "options", values);
 };
 
 VisApp.prototype.parseFile = function(fileRequest) {
