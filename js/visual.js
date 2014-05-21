@@ -1,12 +1,7 @@
 /**
  * Created by atg on 14/05/2014.
  */
-$(document).keydown(function(ev) {
-    console.log("Key ", ev.which, " pressed");
-    if(ev.which =='P'.charCodeAt(0)) {
-        console.log("Camera =", camera.position, "Rot =", camera.rotation);
-    }
-});
+
 
 function eliminateDuplicates(arr) {
     var i,
@@ -23,6 +18,19 @@ function eliminateDuplicates(arr) {
     return out;
 }
 
+function eliminateInvalidCells(arr) {
+    //Assume invalid to be empty or undefined values
+    //Assume there are NO duplicates!!!
+    var out=[];
+
+    for(var index=0; index<arr.length; ++index) {
+        if(arr[index] && arr[index] != undefined) {
+            out.push(arr[index]);
+        }
+    }
+
+    return out;
+}
 //Init this app from base
 function VisApp() {
     BaseApp.call(this);
@@ -186,23 +194,60 @@ VisApp.prototype.generateLabel = function(name, position) {
 
 VisApp.prototype.generateGUIControls = function() {
     //Generate a gui control from each property of the input file
-    var ignoreList = ["Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
+    var ignoreList = ["Project name", "Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
 
     //Get UI controls to add
-    var guiLabels = [];
-    var item = this.data[0];
-    for(var key in item) {
-        guiLabels.push(key);
-        console.log("item =", item[key]);
-
+    var guiLabels = Object.keys(this.data[0]);
+    for(var i=0; i<ignoreList.length; ++i) {
+        var index = guiLabels.indexOf(ignoreList[i]);
+        if (index >= 0) {
+            guiLabels.splice(index, 1);
+        }
     }
+
+    //Create master and sub arrays
+    var master = new Array();
+    for(var lists=0; lists<guiLabels.length; ++lists) {
+        var sub = new Array();
+        master.push(sub);
+    }
+
+    //Populate arrays with relevant values
+    var x=0, i=0;
+    var index;
+    var elements = this.data.length;
+    while(elements--) {
+        var item = this.data[i];
+        for(var key in item) {
+            index = ignoreList.indexOf(key);
+            if(index >=0) {
+                continue;
+            }
+            console.log(item[key], " is ", typeof(item[key]));
+            master[x++][i] = item[key];
+        }
+        x=0;
+        ++i;
+    }
+    //Eliminate duplicates
+    for(var arr=0; arr<master.length; ++arr) {
+        console.log("Element =", typeof(master[arr][0]));
+        master[arr] = eliminateDuplicates(master[arr]);
+        master[arr] = eliminateInvalidCells(master[arr]);
+    }
+
     this.guiControls.extra = this.data[0];
-    //for(var item=0; item<guiLabels.length; ++item){
-    //    this.guiData.add(this.guiControls.extra, guiLabels[item].toString());
-    //}
-    var values = ["", "tony", "hello", "forest"];
-    this.guiControls.options = "";
-    this.guiData.add(this.guiControls, "options", values);
+    for(var label=0; label<guiLabels.length; ++label) {
+        console.log("Element =", typeof(master[label][0]));
+        if(typeof(master[label][0]) === 'number') {
+            this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label][0], master[label][master[label].length-1]);
+        }
+        else {
+            //Add empty value for default
+            master[label].splice(0, 1, "");
+            this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
+        }
+    }
 };
 
 VisApp.prototype.parseFile = function(fileRequest) {
