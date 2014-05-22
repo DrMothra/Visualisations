@@ -19,6 +19,73 @@ function eliminateDuplicates(arr) {
 }
 */
 
+function getDuplicates(arr) {
+    //Get frequency of required members
+    var dupes = [];
+    for(var i=0; i<arr.length; ++i) {
+        var item = arr[i];
+        for(var j=0; j<arr.length; ++j) {
+            if(i == j) continue;
+
+            var currentItem = arr[j];
+            if(item["Bodily Embeddedness"] == currentItem["Bodily Embeddedness"] &&
+                    item["Bodily Reciprocity"] == currentItem["Bodily Reciprocity"]) {
+                dupes.push(item["Bodily Embeddedness"]);
+                dupes.push(item["Bodily Reciprocity"]);
+            }
+        }
+    }
+
+    //Convert array to object
+    var obj = {};
+    for(var i=0; i<dupes.length; i+=2) {
+        obj[dupes[i]]=dupes[i+1];
+    }
+    dupes = [];
+    for(var key in obj) {
+        dupes.push(parseInt(key));
+        dupes.push(obj[key]);
+    }
+
+    var freqs = [];
+    var occur = 0;
+    for(var i=0; i<arr.length; ++i) {
+        var item = arr[i];
+        for (var j = 0; j < dupes.length / 2; j += 2) {
+            if (dupes[j] == item["Bodily Embeddedness"] &&
+                dupes[j + 1] == item["Bodily Reciprocity"]) {
+                ++occur;
+            }
+        }
+        freqs.push(occur);
+        occur = 0;
+    }
+
+    for(var i=0; i<freqs.length; ++i) {
+        dupes.splice(i+2, 1, freqs[i]);
+    }
+
+    return dupes;
+
+    /*
+    var counts = {};
+    arr.forEach(function(element) {
+        counts[element] = (counts[element] || 0) + 1;
+    });
+
+    //Construct array with duplicate + frequency
+    var dupes = [];
+    for(var key in counts) {
+        if(counts[key] > 1) {
+            dupes.push(parseInt(key));
+            dupes.push(counts[key]);
+        }
+    }
+
+    return dupes;
+    */
+}
+
 function eliminateDuplicates(arr) {
     var r = new Array();
     start: for(var i = 0; i < arr.length; ++i) {
@@ -156,10 +223,15 @@ VisApp.prototype.analyseItem = function(item) {
 
 VisApp.prototype.analyseData = function() {
     //Analyse data and configure accordingly
+    var dupes = getDuplicates(this.data);
 
+    return dupes;
 };
 
 VisApp.prototype.generateData = function() {
+    //Analyse data first
+    this.analyseData();
+
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
