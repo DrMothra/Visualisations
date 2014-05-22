@@ -2,7 +2,7 @@
  * Created by atg on 14/05/2014.
  */
 
-
+/*
 function eliminateDuplicates(arr) {
     var i,
         len=arr.length,
@@ -16,6 +16,20 @@ function eliminateDuplicates(arr) {
         out.push(i);
     }
     return out;
+}
+*/
+
+function eliminateDuplicates(arr) {
+    var r = new Array();
+    start: for(var i = 0; i < arr.length; ++i) {
+        for(var x = 0; x < r.length; ++x) {
+            if(r[x]==arr[i]) {
+                continue start;
+            }
+        }
+        r[r.length] = arr[i];
+    }
+    return r;
 }
 
 function eliminateInvalidCells(arr) {
@@ -121,17 +135,44 @@ VisApp.prototype.createGUI = function() {
     this.gui = gui;
 };
 
+VisApp.prototype.analyseItem = function(item) {
+    //Analyse this item and adjust appearance accordingly
+    for(var i=0; i<this.data.length; ++i) {
+        var thisItem = this.data[i];
+        if(thisItem['Project name'] != item['Project name']) {
+            //Different items
+            if(thisItem["Bodily Embeddedness"] == item["Bodily Embeddedness"] &&
+                thisItem["Bodily Reciprocity"] == item["Bodily Reciprocity"]) {
+                //Create new material
+                var update = { material : new THREE.MeshPhongMaterial({color: 0xff0000})};
+
+                return update;
+            }
+        }
+    }
+
+    return null;
+};
+
+VisApp.prototype.analyseData = function() {
+    //Analyse data and configure accordingly
+
+};
+
 VisApp.prototype.generateData = function() {
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
 
     var nodes = [];
+
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
         if(item["Bodily Embeddedness"] >= 0 && item["Bodily Reciprocity"] >= 0) {
-            var node = new THREE.Mesh(sphereGeometry, material);
+            //Examine data and adjust accordingly
+            var update = this.analyseItem(item);
+            var node = new THREE.Mesh(sphereGeometry, update ? update.material : material);
             node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
             node.position.y = item["Bodily Reciprocity"] - 50;
             node.position.z = 0;
@@ -184,7 +225,7 @@ VisApp.prototype.generateLabel = function(name, position) {
     var scaleY = this.guiControls.scaleY;
 
     sprite.scale.set(scaleX, scaleY, 1);
-    sprite.position.set(position.x, position.y, 0);
+    sprite.position.set(position.x, position.y, position.z);
 
     //Give sprite a name
     sprite.name = "Sprite" + this.spritesRendered++;
@@ -223,7 +264,6 @@ VisApp.prototype.generateGUIControls = function() {
             if(index >=0) {
                 continue;
             }
-            console.log(item[key], " is ", typeof(item[key]));
             master[x++][i] = item[key];
         }
         x=0;
@@ -231,15 +271,14 @@ VisApp.prototype.generateGUIControls = function() {
     }
     //Eliminate duplicates
     for(var arr=0; arr<master.length; ++arr) {
-        console.log("Element =", typeof(master[arr][0]));
         master[arr] = eliminateDuplicates(master[arr]);
         master[arr] = eliminateInvalidCells(master[arr]);
     }
 
     this.guiControls.extra = this.data[0];
     for(var label=0; label<guiLabels.length; ++label) {
-        console.log("Element =", typeof(master[label][0]));
         if(typeof(master[label][0]) === 'number') {
+            master[label].sort();
             this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label][0], master[label][master[label].length-1]);
         }
         else {
