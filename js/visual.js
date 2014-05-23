@@ -36,37 +36,31 @@ function getDuplicates(arr) {
         }
     }
 
+    if(dupes.length == 0) return null;
+
     //Convert array to object
-    var obj = {};
+    var frequency = {};
     for(var i=0; i<dupes.length; i+=2) {
-        obj[dupes[i]]=dupes[i+1];
-    }
-    dupes = [];
-    for(var key in obj) {
-        dupes.push(parseInt(key));
-        dupes.push(obj[key]);
-    }
-
-    var freqs = [];
-    var occur = 0;
-    for(var i=0; i<arr.length; ++i) {
-        var item = arr[i];
-        for (var j = 0; j < dupes.length / 2; j += 2) {
-            if (dupes[j] == item["Bodily Embeddedness"] &&
-                dupes[j + 1] == item["Bodily Reciprocity"]) {
-                ++occur;
-            }
+        var key1 = dupes[i];
+        var key2 = dupes[i+1];
+        if(!(key1 in frequency)) {
+            frequency[key1] = {};
+            frequency[key1][key2] = 1;
         }
-        freqs.push(occur);
-        occur = 0;
+        else {
+            ++(frequency[key1][key2]);
+        }
     }
 
+    return frequency;
+
+    /*
     for(var i=0; i<freqs.length; ++i) {
         dupes.splice(i+2, 1, freqs[i]);
     }
 
     return dupes;
-
+    */
     /*
     var counts = {};
     arr.forEach(function(element) {
@@ -139,6 +133,7 @@ VisApp.prototype.createScene = function() {
     //Init base createsScene
     BaseApp.prototype.createScene.call(this);
     addAxes(this.scene);
+    addGroundPlane(this.scene);
 };
 
 VisApp.prototype.reDraw = function() {
@@ -202,23 +197,27 @@ VisApp.prototype.createGUI = function() {
     this.gui = gui;
 };
 
-VisApp.prototype.analyseItem = function(item) {
-    //Analyse this item and adjust appearance accordingly
-    for(var i=0; i<this.data.length; ++i) {
-        var thisItem = this.data[i];
-        if(thisItem['Project name'] != item['Project name']) {
-            //Different items
-            if(thisItem["Bodily Embeddedness"] == item["Bodily Embeddedness"] &&
-                thisItem["Bodily Reciprocity"] == item["Bodily Reciprocity"]) {
-                //Create new material
-                var update = { material : new THREE.MeshPhongMaterial({color: 0xff0000})};
+function guiChanged(value) {
+    console.log("Gui changed");
+}
 
-                return update;
-            }
+function guiChangeFinished(value) {
+    console.log("Gui finished");
+}
+
+VisApp.prototype.analyseItem = function(item, updatedData) {
+    //Analyse this item and adjust appearance accordingly
+    var update = null;
+    //See if item in updated data
+    var key = item["Bodily Embeddedness"];
+    if(key in updatedData) {
+        var freq = updatedData[key][item["Bodily Reciprocity"]];
+        if (freq != undefined) {
+            update = { material: new THREE.MeshPhongMaterial({color: 0xff0000}),
+                position: -freq * 10};
         }
     }
-
-    return null;
+    return update;
 };
 
 VisApp.prototype.analyseData = function() {
@@ -230,24 +229,38 @@ VisApp.prototype.analyseData = function() {
 
 VisApp.prototype.generateData = function() {
     //Analyse data first
-    this.analyseData();
+    var updates = this.analyseData();
+
+    console.log("Gui = ", this.guiControls.extra);
 
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
 
     var nodes = [];
-
+    //Keep track of which nodes have been visited
+    var visited = {};
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
-        if(item["Bodily Embeddedness"] >= 0 && item["Bodily Reciprocity"] >= 0) {
+        var embed = item["Bodily Embeddedness"];
+        var recip = item["Bodily Reciprocity"];
+        if(embed >= 0 && recip >= 0) {
             //Examine data and adjust accordingly
-            var update = this.analyseItem(item);
-            var node = new THREE.Mesh(sphereGeometry, update ? update.material : material);
+            var updateRequired = this.analyseItem(item, updates);
+            if(updateRequired) {
+                if(!(embed in visited)) {
+                    visited[embed] = {};
+                    visited[embed][recip] = 0;
+                }
+                else {
+                    ++(visited[embed][recip]);
+                }
+            }
+            var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
             node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
             node.position.y = item["Bodily Reciprocity"] - 50;
-            node.position.z = 0;
+            node.position.z = updateRequired ? visited[embed][recip] * -10 : 0;
             //Give node a name
             node.name = "Node" + this.nodesRendered++;
             nodes.push(node);
@@ -359,6 +372,11 @@ VisApp.prototype.generateGUIControls = function() {
             this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
         }
     }
+    //Clear extra gui controls
+    for(var control in this.guiControls.extra) {
+        this.guiControls.extra[control] = "";
+    }
+    this.guiControls.extra["City"] = "";
 };
 
 VisApp.prototype.parseFile = function(fileRequest) {
@@ -431,6 +449,23 @@ function addAxes(scene) {
     xAxisText.position.y = 52.5;
     xAxisText.position.z = 0;
     scene.add(xAxisText);
+}
+
+function addGroundPlane(scene) {
+    // create the ground plane
+    var planeGeometry = new THREE.PlaneGeometry(60,40,1,1);
+    var planeMaterial = new THREE.MeshLambertMaterial({color: 0xeaeaea});
+    var plane = new THREE.Mesh(planeGeometry,planeMaterial);
+    //plane.receiveShadow  = true;
+
+    // rotate and position the plane
+    plane.rotation.x=-0.5*Math.PI;
+    plane.position.x=0
+    plane.position.y=0
+    plane.position.z=0
+
+    // add the plane to the scene
+    scene.add(plane);
 }
 
 function readDataFile() {
