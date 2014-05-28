@@ -231,7 +231,15 @@ VisApp.prototype.generateData = function() {
     //Analyse data first
     var updates = this.analyseData();
 
-    console.log("Gui = ", this.guiControls.extra);
+    var extraData = this.guiControls.extra;
+    var filterValue = null, filterKey = null;
+    for(var key in extraData) {
+        if(extraData[key] != "") {
+            filterValue = extraData[key];
+            filterKey = key;
+            break;
+        }
+    }
 
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
@@ -240,6 +248,7 @@ VisApp.prototype.generateData = function() {
     var nodes = [];
     //Keep track of which nodes have been visited
     var visited = {};
+    var updateRequired;
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
@@ -247,7 +256,7 @@ VisApp.prototype.generateData = function() {
         var recip = item["Bodily Reciprocity"];
         if(embed >= 0 && recip >= 0) {
             //Examine data and adjust accordingly
-            var updateRequired = this.analyseItem(item, updates);
+            updateRequired = this.analyseItem(item, updates);
             if(updateRequired) {
                 if(!(embed in visited)) {
                     visited[embed] = {};
@@ -257,15 +266,21 @@ VisApp.prototype.generateData = function() {
                     ++(visited[embed][recip]);
                 }
             }
-            var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
-            node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
-            node.position.y = item["Bodily Reciprocity"] - 50;
-            node.position.z = updateRequired ? visited[embed][recip] * -10 : 0;
-            //Give node a name
-            node.name = "Node" + this.nodesRendered++;
-            nodes.push(node);
-            this.scene.add(node);
-            this.generateLabel(item["Project name"], node.position);
+            //Check any filtering
+            if( (filterKey && item[filterKey] == filterValue) || !filterKey ) {
+                //Debug
+                console.log("key =", filterKey, " value =", filterValue);
+
+                var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
+                node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
+                node.position.y = item["Bodily Reciprocity"] - 50;
+                node.position.z = updateRequired ? visited[embed][recip] * -10 : 0;
+                //Give node a name
+                node.name = "Node" + this.nodesRendered++;
+                nodes.push(node);
+                this.scene.add(node);
+                this.generateLabel(item["Project name"], node.position);
+            }
         }
     }
 };
@@ -331,6 +346,11 @@ VisApp.prototype.generateGUIControls = function() {
         }
     }
 
+    var extraGui = {};
+    for(var i=0; i<guiLabels.length; ++i) {
+        extraGui[guiLabels[i]] = "";
+    }
+
     //Create master and sub arrays
     var master = new Array();
     for(var lists=0; lists<guiLabels.length; ++lists) {
@@ -360,7 +380,7 @@ VisApp.prototype.generateGUIControls = function() {
         master[arr] = eliminateInvalidCells(master[arr]);
     }
 
-    this.guiControls.extra = this.data[0];
+    this.guiControls.extra = extraGui;
     for(var label=0; label<guiLabels.length; ++label) {
         if(typeof(master[label][0]) === 'number') {
             master[label].sort();
@@ -368,15 +388,10 @@ VisApp.prototype.generateGUIControls = function() {
         }
         else {
             //Add empty value for default
-            master[label].splice(0, 1, "");
+            master[label].splice(0, 0, "");
             this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
         }
     }
-    //Clear extra gui controls
-    for(var control in this.guiControls.extra) {
-        this.guiControls.extra[control] = "";
-    }
-    this.guiControls.extra["City"] = "";
 };
 
 VisApp.prototype.parseFile = function(fileRequest) {
@@ -453,16 +468,16 @@ function addAxes(scene) {
 
 function addGroundPlane(scene) {
     // create the ground plane
-    var planeGeometry = new THREE.PlaneGeometry(60,40,1,1);
+    var planeGeometry = new THREE.PlaneGeometry(180,120,1,1);
     var planeMaterial = new THREE.MeshLambertMaterial({color: 0xeaeaea});
     var plane = new THREE.Mesh(planeGeometry,planeMaterial);
     //plane.receiveShadow  = true;
 
     // rotate and position the plane
     plane.rotation.x=-0.5*Math.PI;
-    plane.position.x=0
-    plane.position.y=0
-    plane.position.z=0
+    plane.position.x=0;
+    plane.position.y=-60;
+    plane.position.z=0;
 
     // add the plane to the scene
     scene.add(plane);
@@ -523,10 +538,4 @@ $(document).ready(function() {
     //Init stats of required
     //var stats = initStats();
 
-    //Set up data
-    var data = [
-        { projectName: "WABI", embed: 98, recip: 98},
-        { projectName: "Naked House", embed: 50, recip: 5},
-        { projectName: "Polymorphic", embed: 95, recip: 50}
-    ];
 });
