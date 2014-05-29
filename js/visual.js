@@ -232,14 +232,6 @@ VisApp.prototype.generateData = function() {
     var updates = this.analyseData();
 
     var extraData = this.guiControls.extra;
-    var filterValue = null, filterKey = null;
-    for(var key in extraData) {
-        if(extraData[key] != "") {
-            filterValue = extraData[key];
-            filterKey = key;
-            break;
-        }
-    }
 
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
@@ -267,10 +259,14 @@ VisApp.prototype.generateData = function() {
                 }
             }
             //Check any filtering
-            if( (filterKey && item[filterKey] == filterValue) || !filterKey ) {
-                //Debug
-                console.log("key =", filterKey, " value =", filterValue);
-
+            var render = true;
+            for(var key in extraData) {
+                if(extraData[key] != "" && extraData[key] != item[key]) {
+                    render = false;
+                    break;
+                }
+            }
+            if(render) {
                 var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
                 node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
                 node.position.y = item["Bodily Reciprocity"] - 50;
