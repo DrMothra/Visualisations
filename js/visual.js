@@ -119,6 +119,7 @@ VisApp.prototype.init = function(container) {
     this.nodesRendered = 0;
     this.spritesRendered = 0;
     this.guiControls = null;
+    this.filename = null;
     //Always have appearance and data folders to gui
     this.guiAppear = null;
     this.guiData = null;
@@ -166,18 +167,6 @@ VisApp.prototype.createGUI = function() {
         this.scaleX = 10;
         this.scaleY = 5;
         this.filename = '';
-        this.LoadFile = function() {
-            //Attempt to load given json file
-            if(this.filename.length != 0) {
-                console.log("Loading file", this.filename);
-                var fileRequest = new XMLHttpRequest();
-                fileRequest.onreadystatechange = function() {
-                    main.parseFile(fileRequest);
-                };
-                fileRequest.open("GET", this.filename, true);
-                fileRequest.send(null);
-            }
-        };
         this.ReDraw = function() {
             main.reDraw();
         };
@@ -185,8 +174,7 @@ VisApp.prototype.createGUI = function() {
 
     var gui = new dat.GUI();
     //Folders
-    gui.add(this.guiControls, 'filename');
-    gui.add(this.guiControls, 'LoadFile');
+    gui.add(this.guiControls, 'filename', this.filename);
     this.guiAppear = gui.addFolder("Appearance");
     this.guiAppear.add(this.guiControls, 'font');
     this.guiAppear.add(this.guiControls, 'fontSize', 10, 36);
@@ -330,6 +318,9 @@ VisApp.prototype.generateLabel = function(name, position) {
 };
 
 VisApp.prototype.generateGUIControls = function() {
+    //Add filename to gui
+    this.guiControls.filename = this.filename;
+
     //Generate a gui control from each property of the input file
     var ignoreList = ["Project name", "Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
 
@@ -390,26 +381,54 @@ VisApp.prototype.generateGUIControls = function() {
     }
 };
 
-VisApp.prototype.parseFile = function(fileRequest) {
+VisApp.prototype.parseFile = function() {
     //Attempt to load and parse given json file
-    if(fileRequest.readyState == 4) {
-        console.log("Received request");
-        if(fileRequest.status == 200 || fileRequest.status == 0) {
-            console.log("Request = ", fileRequest.responseText);
-            try {
-                this.data = JSON.parse(fileRequest.responseText);
-            }
-            catch (err) {
-                console.log('error parsing JSON file', err);
-                alert('Sorry, there was a problem reading that file');
-                return;
-            }
-            //File parsed OK - generate GUI controls and data
-            this.generateData();
-            this.generateGUIControls();
+    if(!this.filename) return;
+
+    console.log("Reading file...");
+
+    var reader = new FileReader();
+    var self = this;
+    reader.onload = function(evt) {
+        //File loaded - parse it
+        console.log('file read: '+evt.target.result);
+        try {
+            self.data = JSON.parse(evt.target.result);
         }
-    }
+        catch (err) {
+            console.log('error parsing JSON file', err);
+            alert('Sorry, there was a problem reading that file');
+            return;
+        }
+        //File parsed OK - generate GUI controls and data
+        self.generateData();
+        self.generateGUIControls();
+    };
+
+    // Read in the file
+    reader.readAsText(this.filename);
 };
+
+VisApp.prototype.onSelectFile = function(evt) {
+    //User selected file
+    //See if we support filereader API's
+    if (window.File && window.FileReader && window.FileList && window.Blob) {
+        //File APIs are supported.
+        var files = evt.target.files; // FileList object
+        if (files.length==0) {
+            console.log('no file specified');
+            this.filename = null;
+            return;
+        }
+        this.filename = files[0];
+        console.log("File chosen", this.filename);
+
+        //Try and read this file
+        this.parseFile();
+    }
+    else
+        alert('sorry, file apis not supported');
+}
 
 function addAxes(scene) {
     //Create axes;
@@ -479,7 +498,7 @@ function addGroundPlane(scene) {
     scene.add(plane);
 }
 
-function readDataFile() {
+function readDataFile(dataFilename) {
     //Ensure we have file selected
     if(!dataFilename) return;
 
@@ -490,45 +509,37 @@ function readDataFile() {
         //File loaded - parse it
         console.log('file read: '+evt.target.result);
         var data = null;
-
+        try {
+            data = JSON.parse(evt.target.result);
+            var temp = 0;
+        }
+        catch (err) {
+            console.log('error parsing JSON file', err);
+            alert('Sorry, there was a problem reading that file');
+            return;
+        }
     };
 
     // Read in the file
     reader.readAsText(dataFilename);
 }
 
-var dataFilename = null;
-function onSelectFile(evt) {
-    //User selected file
-    //See if we support filereader API's
-    if (window.File && window.FileReader && window.FileList && window.Blob) {
-        //File APIs are supported.
 
-        var files = evt.target.files; // FileList object
-        if (files.length==0) {
-            console.log('no file specified');
-            dataFilename = null;
-            return;
-        }
-        dataFilename = files[0];
-    }
-    else
-        alert('sorry, file apis not supported');
-}
 
 //Only executed our code once the DOM is ready.
 $(document).ready(function() {
-
-    //GUI callbacks
-    //$("#selectFile").on("change", onSelectFile);
-
-
     //Initialise app
     var container = document.getElementById("WebGL-output");
     var app = new VisApp();
     app.init(container);
     app.createScene();
     app.createGUI();
+
+    //GUI callbacks
+    $("#chooseFile").on("change", function(evt) {
+        app.onSelectFile(evt);
+    });
+
     app.run();
 
     //Init stats of required
