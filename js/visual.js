@@ -116,25 +116,52 @@ VisApp.prototype = new BaseApp();
 VisApp.prototype.init = function(container) {
     BaseApp.prototype.init.call(this, container);
     this.data = null;
+    this.updateRequired = false;
     this.nodesRendered = 0;
     this.spritesRendered = 0;
     this.guiControls = null;
-    this.filename = null;
+    this.dataFile = null;
+    this.filename = "";
     //Always have appearance and data folders to gui
     this.guiAppear = null;
     this.guiData = null;
+    //Time slider
+    this.sliderPos = 0;
 };
 
 VisApp.prototype.update = function() {
     //Perform any updates
     BaseApp.prototype.update.call(this);
+
+    //Update time slider
+    var slider = this.scene.getObjectByName('timeSlider');
+    if(slider)
+    {
+        if(this.data) {
+            if (this.updateRequired) {
+                //Set slider position
+                var pos = (this.guiControls.Year - this.yearMin) / (this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH / 2;
+                this.guiControls.StartYear = this.guiControls.Year - this.SLIDER_DEPTH / 2;
+                this.guiControls.EndYear = this.guiControls.Year + this.SLIDER_DEPTH / 2;
+                slider.position.z = pos;
+                this.reDraw();
+                this.updateRequired = false;
+            }
+        }
+    }
 };
 
 VisApp.prototype.createScene = function() {
     //Init base createsScene
     BaseApp.prototype.createScene.call(this);
     addAxes(this.scene);
-    addGroundPlane(this.scene);
+    this.GROUND_DEPTH = 240;
+    this.GROUND_WIDTH = 180;
+    addGroundPlane(this.scene, this.GROUND_WIDTH, this.GROUND_DEPTH);
+    this.SLIDER_WIDTH = 150;
+    this.SLIDER_HEIGHT = 120;
+    this.SLIDER_DEPTH = 10;
+    addTimeSlider(this.scene, this.SLIDER_WIDTH, this.SLIDER_HEIGHT, this.SLIDER_DEPTH);
 };
 
 VisApp.prototype.reDraw = function() {
@@ -173,25 +200,40 @@ VisApp.prototype.createGUI = function() {
     };
 
     var gui = new dat.GUI();
+
     //Folders
-    gui.add(this.guiControls, 'filename', this.filename);
+    var main = this;
+    gui.add(this.guiControls, 'filename', this.filename).listen();
     this.guiAppear = gui.addFolder("Appearance");
-    this.guiAppear.add(this.guiControls, 'font');
-    this.guiAppear.add(this.guiControls, 'fontSize', 10, 36);
-    this.guiAppear.add(this.guiControls, 'scaleX', 1, 50);
-    this.guiAppear.add(this.guiControls, 'scaleY', 1, 50);
+    var font = this.guiAppear.add(this.guiControls, 'font');
+    font.onChange(function(value) {
+        main.guiChanged();
+    });
+
+    var fontSize = this.guiAppear.add(this.guiControls, 'fontSize', 10, 36);
+    fontSize.onChange(function(value) {
+        main.guiChanged();
+    });
+
+    var scaleX = this.guiAppear.add(this.guiControls, 'scaleX', 1, 50);
+    scaleX.onChange(function(value) {
+        main.guiChanged();
+    });
+
+    var scaleY = this.guiAppear.add(this.guiControls, 'scaleY', 1, 50);
+    scaleY.onChange(function(value) {
+        main.guiChanged();
+    });
+
     this.guiData = gui.addFolder("Data");
     gui.add(this.guiControls, 'ReDraw');
     this.gui = gui;
 };
 
-function guiChanged(value) {
-    console.log("Gui changed");
-}
-
-function guiChangeFinished(value) {
-    console.log("Gui finished");
-}
+VisApp.prototype.guiChanged = function() {
+    console.log("GUI changed");
+    this.updateRequired = true;
+};
 
 VisApp.prototype.analyseItem = function(item, updatedData) {
     //Analyse this item and adjust appearance accordingly
@@ -234,7 +276,8 @@ VisApp.prototype.generateData = function() {
         var item = this.data[i];
         var embed = item["Bodily Embeddedness"];
         var recip = item["Bodily Reciprocity"];
-        if(embed >= 0 && recip >= 0) {
+        var year = item["Year"];
+        if(embed >= 0 && recip >= 0 && year >= this.guiControls.StartYear && year <= this.guiControls.EndYear) {
             //Examine data and adjust accordingly
             updateRequired = this.analyseItem(item, updates);
             if(updateRequired) {
@@ -258,15 +301,21 @@ VisApp.prototype.generateData = function() {
                 var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
                 node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
                 node.position.y = item["Bodily Reciprocity"] - 50;
-                node.position.z = updateRequired ? visited[embed][recip] * -10 : 0;
+                node.position.z = (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2;
+                var labelPos = new THREE.Vector3();
+                labelPos.x = node.position.x;
+                labelPos.y = node.position.y;
+                //labelPos.z = updateRequired ? visited[embed][recip] * -5 : 0;
+                labelPos.z = node.position.z;
                 //Give node a name
                 node.name = "Node" + this.nodesRendered++;
                 nodes.push(node);
                 this.scene.add(node);
-                this.generateLabel(item["Project name"], node.position);
+                this.generateLabel(item["Project name"], labelPos);
             }
         }
     }
+    this.updateRequired = true;
 };
 
 VisApp.prototype.generateLabel = function(name, position) {
@@ -301,6 +350,7 @@ VisApp.prototype.generateLabel = function(name, position) {
             //transparent: false,
             useScreenCoordinates: false,
             alignment: THREE.SpriteAlignment.bottomCenter,
+            blending: THREE.AdditiveBlending,
             map: texture}
     );
 
@@ -367,18 +417,38 @@ VisApp.prototype.generateGUIControls = function() {
         master[arr] = eliminateInvalidCells(master[arr]);
     }
 
+    var main = this;
     this.guiControls.extra = extraGui;
     for(var label=0; label<guiLabels.length; ++label) {
         if(typeof(master[label][0]) === 'number') {
             master[label].sort();
-            this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label][0], master[label][master[label].length-1]);
+            //Assume this is time-based data
+            var max = master[label][master[label].length-1];
+            this.yearMax = max;
+            this.yearMin =  master[label][0];
+            this.guiControls.Year = max;
+            var yearChange = this.guiData.add(this.guiControls, guiLabels[label].toString(), master[label][0], max);
+            yearChange.onChange(function(value) {
+                main.guiChanged();
+            });
+            //Add slider depth info
+            this.guiControls.StartYear = max - this.SLIDER_DEPTH/2;
+            this.guiControls.EndYear = max + this.SLIDER_DEPTH/2;
+            this.guiControls.ShowSlider = true;
+            this.guiData.add(this.guiControls, 'StartYear').listen();
+            this.guiData.add(this.guiControls, 'EndYear').listen();
+            this.guiData.add(this.guiControls, 'ShowSlider');
         }
         else {
             //Add empty value for default
             master[label].splice(0, 0, "");
-            this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
+            var control = this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
+            control.onChange(function(value) {
+                main.guiChanged();
+            });
         }
     }
+
 };
 
 VisApp.prototype.parseFile = function() {
@@ -401,12 +471,12 @@ VisApp.prototype.parseFile = function() {
             return;
         }
         //File parsed OK - generate GUI controls and data
-        self.generateData();
         self.generateGUIControls();
+        self.generateData();
     };
 
     // Read in the file
-    reader.readAsText(this.filename);
+    reader.readAsText(this.dataFile);
 };
 
 VisApp.prototype.onSelectFile = function(evt) {
@@ -417,10 +487,11 @@ VisApp.prototype.onSelectFile = function(evt) {
         var files = evt.target.files; // FileList object
         if (files.length==0) {
             console.log('no file specified');
-            this.filename = null;
+            this.filename = "";
             return;
         }
-        this.filename = files[0];
+        this.dataFile = files[0];
+        this.filename = this.dataFile.name;
         console.log("File chosen", this.filename);
 
         //Try and read this file
@@ -481,9 +552,9 @@ function addAxes(scene) {
     scene.add(xAxisText);
 }
 
-function addGroundPlane(scene) {
+function addGroundPlane(scene, width, height) {
     // create the ground plane
-    var planeGeometry = new THREE.PlaneGeometry(180,120,1,1);
+    var planeGeometry = new THREE.PlaneGeometry(width,height,1,1);
     var planeMaterial = new THREE.MeshLambertMaterial({color: 0xeaeaea});
     var plane = new THREE.Mesh(planeGeometry,planeMaterial);
     //plane.receiveShadow  = true;
@@ -496,6 +567,20 @@ function addGroundPlane(scene) {
 
     // add the plane to the scene
     scene.add(plane);
+}
+
+function addTimeSlider(scene, width, height, depth) {
+    //Create time slider box
+    //DEBUG - DEPTH NEEDS REWORKING
+    var boxGeometry = new THREE.CubeGeometry(width, height, 20, 4, 4, 4);
+    var boxMaterial = new THREE.MeshPhongMaterial({color: 0xdddddd, transparent: true, opacity: 0.4, depthTest: false});
+    var box = new THREE.Mesh(boxGeometry, boxMaterial);
+    box.name = 'timeSlider';
+    box.position.x = 0;
+    box.position.y = 0;
+    box.position.z = 0;
+
+    scene.add(box);
 }
 
 function readDataFile(dataFilename) {
