@@ -134,16 +134,24 @@ VisApp.prototype.update = function() {
     BaseApp.prototype.update.call(this);
 
     //Update time slider
-    var slider = this.scene.getObjectByName('timeSlider');
+    var slider = this.scene.getObjectByName('groupSlider');
     if(slider)
     {
         if(this.data) {
             if (this.updateRequired) {
                 //Set slider position
-                var pos = (this.guiControls.Year - this.yearMin) / (this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH / 2;
-                this.guiControls.StartYear = this.guiControls.Year - this.SLIDER_DEPTH / 2;
-                this.guiControls.EndYear = this.guiControls.Year + this.SLIDER_DEPTH / 2;
-                slider.position.z = pos;
+                if(this.sliderEnabled) {
+                    var pos = (this.guiControls.Year - this.yearMin) / (this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH / 2;
+                    slider.position.z = pos;
+                    //Alter slider width accordingly
+                    var box = this.scene.getObjectByName('timeSlider', true);
+                    if(box) {
+                        box.scale.z = this.GROUND_DEPTH/(this.yearMax-this.yearMin) * this.guiControls.Selection;
+                    }
+                } else {
+                    slider.position.z = 0;
+                }
+
                 this.reDraw();
                 this.updateRequired = false;
             }
@@ -154,14 +162,18 @@ VisApp.prototype.update = function() {
 VisApp.prototype.createScene = function() {
     //Init base createsScene
     BaseApp.prototype.createScene.call(this);
-    addAxes(this.scene);
+    this.axesGroup = new THREE.Object3D();
+    this.axesGroup.name = "groupSlider";
+    addAxes(this.axesGroup);
     this.GROUND_DEPTH = 240;
     this.GROUND_WIDTH = 180;
     addGroundPlane(this.scene, this.GROUND_WIDTH, this.GROUND_DEPTH);
     this.SLIDER_WIDTH = 150;
     this.SLIDER_HEIGHT = 120;
     this.SLIDER_DEPTH = 10;
-    addTimeSlider(this.scene, this.SLIDER_WIDTH, this.SLIDER_HEIGHT, this.SLIDER_DEPTH);
+    addTimeSlider(this.axesGroup, this.SLIDER_WIDTH, this.SLIDER_HEIGHT, this.SLIDER_DEPTH);
+    this.scene.add(this.axesGroup);
+    this.sliderEnabled = true;
 };
 
 VisApp.prototype.reDraw = function() {
@@ -194,9 +206,6 @@ VisApp.prototype.createGUI = function() {
         this.scaleX = 10;
         this.scaleY = 5;
         this.filename = '';
-        this.ReDraw = function() {
-            main.reDraw();
-        };
     };
 
     var gui = new dat.GUI();
@@ -226,12 +235,10 @@ VisApp.prototype.createGUI = function() {
     });
 
     this.guiData = gui.addFolder("Data");
-    gui.add(this.guiControls, 'ReDraw');
     this.gui = gui;
 };
 
 VisApp.prototype.guiChanged = function() {
-    console.log("GUI changed");
     this.updateRequired = true;
 };
 
@@ -277,7 +284,12 @@ VisApp.prototype.generateData = function() {
         var embed = item["Bodily Embeddedness"];
         var recip = item["Bodily Reciprocity"];
         var year = item["Year"];
-        if(embed >= 0 && recip >= 0 && year >= this.guiControls.StartYear && year <= this.guiControls.EndYear) {
+        var diff = this.guiControls.Selection/2;
+        var minYear = this.guiControls.Year - diff;
+        var maxYear = this.guiControls.Year + diff;
+        //DEBUG
+        //console.log("Max=", maxYear, " min=", minYear);
+        if(embed >= 0 && recip >= 0 && year >= minYear && year <= maxYear) {
             //Examine data and adjust accordingly
             updateRequired = this.analyseItem(item, updates);
             if(updateRequired) {
@@ -301,12 +313,11 @@ VisApp.prototype.generateData = function() {
                 var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
                 node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
                 node.position.y = item["Bodily Reciprocity"] - 50;
-                node.position.z = (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2;
+                node.position.z = this.sliderEnabled ? (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
                 var labelPos = new THREE.Vector3();
                 labelPos.x = node.position.x;
                 labelPos.y = node.position.y;
-                //labelPos.z = updateRequired ? visited[embed][recip] * -5 : 0;
-                labelPos.z = node.position.z;
+                labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
                 //Give node a name
                 node.name = "Node" + this.nodesRendered++;
                 nodes.push(node);
@@ -424,20 +435,25 @@ VisApp.prototype.generateGUIControls = function() {
             master[label].sort();
             //Assume this is time-based data
             var max = master[label][master[label].length-1];
+            var min = master[label][0];
             this.yearMax = max;
-            this.yearMin =  master[label][0];
-            this.guiControls.Year = max;
-            var yearChange = this.guiData.add(this.guiControls, guiLabels[label].toString(), master[label][0], max);
+            this.yearMin =  min;
+            this.guiControls.Year = (max-min)/2 + min;
+            var yearChange = this.guiData.add(this.guiControls, guiLabels[label].toString(), min, max).step(1);
             yearChange.onChange(function(value) {
                 main.guiChanged();
             });
             //Add slider depth info
-            this.guiControls.StartYear = max - this.SLIDER_DEPTH/2;
-            this.guiControls.EndYear = max + this.SLIDER_DEPTH/2;
+            this.guiControls.Selection = (max - min)/6;
             this.guiControls.ShowSlider = true;
-            this.guiData.add(this.guiControls, 'StartYear').listen();
-            this.guiData.add(this.guiControls, 'EndYear').listen();
-            this.guiData.add(this.guiControls, 'ShowSlider');
+            var selection = this.guiData.add(this.guiControls, 'Selection', 0, (max-min)*2).step(1);
+            selection.onChange(function(value) {
+                main.guiChanged();
+            });
+            var timeSlider = this.guiData.add(this.guiControls, 'ShowSlider');
+            timeSlider.onChange(function(value) {
+                main.toggleSlider(value);
+            });
         }
         else {
             //Add empty value for default
@@ -449,6 +465,16 @@ VisApp.prototype.generateGUIControls = function() {
         }
     }
 
+};
+
+VisApp.prototype.toggleSlider = function(slider) {
+    //Toggle slider visibility
+    var box = this.scene.getObjectByName("timeSlider", true);
+    if(box) {
+        box.visible = slider;
+        this.sliderEnabled = slider;
+    }
+    this.updateRequired = true;
 };
 
 VisApp.prototype.parseFile = function() {
@@ -501,7 +527,7 @@ VisApp.prototype.onSelectFile = function(evt) {
         alert('sorry, file apis not supported');
 }
 
-function addAxes(scene) {
+function addAxes(group) {
     //Create axes;
     //Set up common material
     var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
@@ -521,8 +547,8 @@ function addAxes(scene) {
     axisX.position.set(0, -axisYHeight/2, 0);
     axisY.position.set(-axisXHeight/2, 0, 0);
 
-    scene.add(axisX);
-    scene.add(axisY);
+    group.add(axisX);
+    group.add(axisY);
 
     //Labelling
     var options = {
@@ -543,13 +569,13 @@ function addAxes(scene) {
     xAxisText.position.x = 80;
     xAxisText.position.y = -50;
     xAxisText.position.z = 0;
-    scene.add(xAxisText);
+    group.add(xAxisText);
     textGeom = new THREE.TextGeometry("Recip", options);
     xAxisText = new THREE.Mesh(textGeom, material);
     xAxisText.position.x = -77.5;
     xAxisText.position.y = 52.5;
     xAxisText.position.z = 0;
-    scene.add(xAxisText);
+    group.add(xAxisText);
 }
 
 function addGroundPlane(scene, width, height) {
@@ -569,10 +595,10 @@ function addGroundPlane(scene, width, height) {
     scene.add(plane);
 }
 
-function addTimeSlider(scene, width, height, depth) {
+function addTimeSlider(group, width, height, depth) {
     //Create time slider box
     //DEBUG - DEPTH NEEDS REWORKING
-    var boxGeometry = new THREE.CubeGeometry(width, height, 20, 4, 4, 4);
+    var boxGeometry = new THREE.CubeGeometry(width, height, 1, 4, 4, 4);
     var boxMaterial = new THREE.MeshPhongMaterial({color: 0xdddddd, transparent: true, opacity: 0.4, depthTest: false});
     var box = new THREE.Mesh(boxGeometry, boxMaterial);
     box.name = 'timeSlider';
@@ -580,7 +606,7 @@ function addTimeSlider(scene, width, height, depth) {
     box.position.y = 0;
     box.position.z = 0;
 
-    scene.add(box);
+    group.add(box);
 }
 
 function readDataFile(dataFilename) {

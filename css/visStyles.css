@@ -29,3 +29,17 @@ body {
     background-color: #004040;
     cursor: pointer;
 }
+
+.info {
+    padding: 5px;
+    position: absolute;
+    border-radius: 5px;
+    bottom: 100px;
+    right: 100px;
+    background-color: rgba(150, 150, 150, 0.5);
+    color: #7fa5ff;
+}
+
+.infoHeader {
+    text-align: center;
+}
