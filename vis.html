@@ -12,7 +12,7 @@
     <script type="text/javascript" src="js/baseApp.js"></script>
     <script type="text/javascript" src="js/visual.js"></script>
 
-    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.4.2/pure.css">
+    <link rel="stylesheet" href="http://yui.yahooapis.com/pure/0.5.0/pure-min.css">
     <link href="css/visStyles.css" rel="stylesheet" type="text/css">
 </head>
 <body>
@@ -27,13 +27,59 @@
     <span>Upload</span>
     <input id="chooseFile" type="file" class="upload">
 </div>
+<div class="camControls">
+    <div class="singleButton">
+        <button id="camFront" class="pure-button pure-button-primary">Front</button>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1-2 doubleButton">
+            <button id="camLeft" class="pure-button pure-button-primary">Left</button>
+        </div>
+        <div class="pure-u-1-2 doubleButton">
+            <button id="camRight" class="pure-button pure-button-primary">Right</button>
+        </div>
+    </div>
+    <div class="singleButton">
+        <button id="camTop" class="pure-button pure-button-primary">Top</button>
+    </div>
+</div>
 <!-- Info panel -->
 <div class="info">
-    <p class="infoHeader">Info</p>
-    <p>Year: 0000</p>
-    <p>Start: 0000</p>
-    <p>End: 0000</p>
-    <p>Number: 00</p>
+    <div class="infoHeader">
+        <p>Information</p>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1-2 infoCell">
+            Year:
+        </div>
+        <div id="currentYear" class="pure-u-1-2 infoCell">
+            0000
+        </div>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1-2 infoCell">
+            Start:
+        </div>
+        <div id="startYear" class="pure-u-1-2 infoCell">
+            0000
+        </div>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1-2 infoCell">
+            End:
+        </div>
+        <div id="endYear" class="pure-u-1-2 infoCell">
+            0000
+        </div>
+    </div>
+    <div class="pure-g">
+        <div class="pure-u-1-2 infoCell">
+            Number:
+        </div>
+        <div id="rendered" class="pure-u-1-2 infoCell">
+            00
+        </div>
+    </div>
 </div>
 </body>
 </html>

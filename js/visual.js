@@ -151,8 +151,9 @@ VisApp.prototype.update = function() {
                 } else {
                     slider.position.z = 0;
                 }
-
+                //Update GUI
                 this.reDraw();
+                this.updateInfoPanel(this.guiControls.Year, this.guiControls.Selection, this.objectsRendered);
                 this.updateRequired = false;
             }
         }
@@ -278,6 +279,7 @@ VisApp.prototype.generateData = function() {
     //Keep track of which nodes have been visited
     var visited = {};
     var updateRequired;
+    this.objectsRendered = 0;
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
@@ -323,10 +325,10 @@ VisApp.prototype.generateData = function() {
                 nodes.push(node);
                 this.scene.add(node);
                 this.generateLabel(item["Project name"], labelPos);
+                ++this.objectsRendered;
             }
         }
     }
-    this.updateRequired = true;
 };
 
 VisApp.prototype.generateLabel = function(name, position) {
@@ -527,6 +529,34 @@ VisApp.prototype.onSelectFile = function(evt) {
         alert('sorry, file apis not supported');
 }
 
+VisApp.prototype.changeView = function(view) {
+    //Alter cam view
+    this.controls.reset();
+    switch (view) {
+        case FRONT:
+            this.camera.position.set(0, 0, 150);
+            break;
+        case RIGHT:
+            this.camera.position.set(200, 0, 0);
+            break;
+        case LEFT:
+            this.camera.position.set(-200, 0, 0);
+            break;
+        case TOP:
+            this.camera.position.set(0, 200, 0);
+            break;
+    }
+    this.camera.lookAt(0, 0, 0);
+};
+
+VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
+    //Update info GUI
+    document.getElementById('currentYear').innerHTML = year;
+    document.getElementById('startYear').innerHTML = year - duration/2;
+    document.getElementById('endYear').innerHTML = year + duration/2;
+    document.getElementById('rendered').innerHTML = objects;
+};
+
 function addAxes(group) {
     //Create axes;
     //Set up common material
@@ -635,9 +665,8 @@ function readDataFile(dataFilename) {
     reader.readAsText(dataFilename);
 }
 
-
-
 //Only executed our code once the DOM is ready.
+var FRONT= 0, RIGHT= 1, LEFT= 2, TOP=3;
 $(document).ready(function() {
     //Initialise app
     var container = document.getElementById("WebGL-output");
@@ -649,6 +678,19 @@ $(document).ready(function() {
     //GUI callbacks
     $("#chooseFile").on("change", function(evt) {
         app.onSelectFile(evt);
+    });
+
+    $("#camFront").on("click", function(evt) {
+        app.changeView(FRONT);
+    });
+    $("#camRight").on("click", function(evt) {
+        app.changeView(RIGHT);
+    });
+    $("#camLeft").on("click", function(evt) {
+        app.changeView(LEFT);
+    });
+    $("#camTop").on("click", function(evt) {
+        app.changeView(TOP);
     });
 
     app.run();

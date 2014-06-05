@@ -11,7 +11,7 @@ body {
     position: absolute;
     padding: 5px;
     top: 50px;
-    left: 50px;
+    left: 75px;
     background-color: rgba(150, 150, 150, 0.5);
     overflow: hidden;
     color: #7fa5ff;
@@ -30,16 +30,38 @@ body {
     cursor: pointer;
 }
 
+.camControls {
+    position: absolute;
+    border-radius: 5px;
+    top: 100px;
+    left: 40px;
+    background-color: rgba(150, 150, 150, 0);
+    color: #7fa5ff;
+}
+.singleButton {
+    text-align: center;
+    margin: 10px;
+}
+.doubleButton {
+    margin-left: 0px;
+    margin-right: 0px;
+    padding: 0px;
+}
 .info {
+    min-width: 150px;
     padding: 5px;
     position: absolute;
     border-radius: 5px;
-    bottom: 100px;
-    right: 100px;
+    top: 250px;
+    left: 30px;
     background-color: rgba(150, 150, 150, 0.5);
     color: #7fa5ff;
+    margin: 0px;
 }
-
+.infoCell {
+    margin-top: 5px;
+    margin-bottom: 5px;
+}
 .infoHeader {
     text-align: center;
 }
