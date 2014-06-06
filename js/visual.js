@@ -207,6 +207,10 @@ VisApp.prototype.createGUI = function() {
         this.scaleX = 10;
         this.scaleY = 5;
         this.filename = '';
+        //Colours
+        this.Slider = "#3b618c";
+        this.Ground = '#3b618c';
+        this.Background = '#3b618c';
     };
 
     var gui = new dat.GUI();
@@ -235,12 +239,38 @@ VisApp.prototype.createGUI = function() {
         main.guiChanged();
     });
 
+    this.guiAppear.addColor(this.guiControls, 'Slider').onChange(function(value) {
+        main.sliderColourChanged(value);
+    });
+    this.guiAppear.addColor(this.guiControls, 'Ground').onChange(function(value) {
+        main.groundColourChanged(value);
+    });
+    this.guiAppear.addColor(this.guiControls, 'Background').onChange(function(value) {
+        main.backgroundColourChanged(value);
+    });
+
     this.guiData = gui.addFolder("Data");
     this.gui = gui;
 };
 
 VisApp.prototype.guiChanged = function() {
     this.updateRequired = true;
+};
+
+VisApp.prototype.sliderColourChanged = function(value) {
+    var slider = this.scene.getObjectByName('timeSlider', true);
+    if(slider) {
+        slider.material.color.setStyle(value);
+    }
+};
+VisApp.prototype.groundColourChanged = function(value) {
+    var ground = this.scene.getObjectByName('ground');
+    if(ground) {
+        ground.material.color.setStyle(value);
+    }
+};
+VisApp.prototype.backgroundColourChanged = function(value) {
+    this.renderer.setClearColor(value, 1.0);
 };
 
 VisApp.prototype.analyseItem = function(item, updatedData) {
@@ -446,9 +476,9 @@ VisApp.prototype.generateGUIControls = function() {
                 main.guiChanged();
             });
             //Add slider depth info
-            this.guiControls.Selection = (max - min)/6;
+            this.guiControls.Selection = 10;
             this.guiControls.ShowSlider = true;
-            var selection = this.guiData.add(this.guiControls, 'Selection', 0, (max-min)*2).step(1);
+            var selection = this.guiData.add(this.guiControls, 'Selection', 0, (max-min)*2).step(2);
             selection.onChange(function(value) {
                 main.guiChanged();
             });
@@ -501,6 +531,7 @@ VisApp.prototype.parseFile = function() {
         //File parsed OK - generate GUI controls and data
         self.generateGUIControls();
         self.generateData();
+        self.updateRequired = true;
     };
 
     // Read in the file
@@ -611,8 +642,10 @@ function addAxes(group) {
 function addGroundPlane(scene, width, height) {
     // create the ground plane
     var planeGeometry = new THREE.PlaneGeometry(width,height,1,1);
-    var planeMaterial = new THREE.MeshLambertMaterial({color: 0xeaeaea});
+    var texture = THREE.ImageUtils.loadTexture("images/grid.png");
+    var planeMaterial = new THREE.MeshBasicMaterial({map: texture, transparent: true, opacity: 0.5});
     var plane = new THREE.Mesh(planeGeometry,planeMaterial);
+
     //plane.receiveShadow  = true;
 
     // rotate and position the plane
@@ -620,6 +653,9 @@ function addGroundPlane(scene, width, height) {
     plane.position.x=0;
     plane.position.y=-60;
     plane.position.z=0;
+
+    //Give it a name
+    plane.name = 'ground';
 
     // add the plane to the scene
     scene.add(plane);
