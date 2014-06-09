@@ -208,9 +208,9 @@ VisApp.prototype.createGUI = function() {
         this.scaleY = 5;
         this.filename = '';
         //Colours
-        this.Slider = "#3b618c";
-        this.Ground = '#3b618c';
-        this.Background = '#3b618c';
+        this.Slider = "#5f7c9d";
+        this.Ground = '#16283c';
+        this.Background = '#5c5f64';
     };
 
     var gui = new dat.GUI();
@@ -643,7 +643,7 @@ function addGroundPlane(scene, width, height) {
     // create the ground plane
     var planeGeometry = new THREE.PlaneGeometry(width,height,1,1);
     var texture = THREE.ImageUtils.loadTexture("images/grid.png");
-    var planeMaterial = new THREE.MeshBasicMaterial({map: texture, transparent: true, opacity: 0.5});
+    var planeMaterial = new THREE.MeshLambertMaterial({map: texture, transparent: true, opacity: 0.5});
     var plane = new THREE.Mesh(planeGeometry,planeMaterial);
 
     //plane.receiveShadow  = true;
@@ -654,6 +654,16 @@ function addGroundPlane(scene, width, height) {
     plane.position.y=-60;
     plane.position.z=0;
 
+    scene.add(plane);
+
+    //Second plane
+    planeGeometry = new THREE.PlaneGeometry(width, height, 1, 1);
+    planeMaterial = new THREE.MeshLambertMaterial({color: 0x16283c});
+    plane = new THREE.Mesh(planeGeometry, planeMaterial);
+    plane.rotation.x=-0.5*Math.PI;
+    plane.position.x=0;
+    plane.position.y=-61;
+    plane.position.z=0;
     //Give it a name
     plane.name = 'ground';
 
@@ -665,7 +675,7 @@ function addTimeSlider(group, width, height, depth) {
     //Create time slider box
     //DEBUG - DEPTH NEEDS REWORKING
     var boxGeometry = new THREE.CubeGeometry(width, height, 1, 4, 4, 4);
-    var boxMaterial = new THREE.MeshPhongMaterial({color: 0xdddddd, transparent: true, opacity: 0.4, depthTest: false});
+    var boxMaterial = new THREE.MeshPhongMaterial({color: 0x5f7c9d, transparent: true, opacity: 0.4, depthTest: false});
     var box = new THREE.Mesh(boxGeometry, boxMaterial);
     box.name = 'timeSlider';
     box.position.x = 0;
@@ -688,7 +698,6 @@ function readDataFile(dataFilename) {
         var data = null;
         try {
             data = JSON.parse(evt.target.result);
-            var temp = 0;
         }
         catch (err) {
             console.log('error parsing JSON file', err);

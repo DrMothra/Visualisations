@@ -32,7 +32,7 @@ BaseApp.prototype.init = function(container) {
 
 BaseApp.prototype.createRenderer = function() {
     this.renderer = new THREE.WebGLRenderer();
-    this.renderer.setClearColor(0x5f5f5f, 1.0);
+    this.renderer.setClearColor(0x5c5f64, 1.0);
     //this.renderer.setSize(1024, 768);
     this.renderer.shadowMapEnabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
