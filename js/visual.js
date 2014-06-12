@@ -81,7 +81,7 @@ function getDuplicates(arr) {
 }
 
 function eliminateDuplicates(arr) {
-    var r = new Array();
+    var r = [];
     start: for(var i = 0; i < arr.length; ++i) {
         for(var x = 0; x < r.length; ++x) {
             if(r[x]==arr[i]) {
@@ -113,6 +113,10 @@ function VisApp() {
 
 VisApp.prototype = new BaseApp();
 
+//Render states and styles
+var RENDER_NORMAL= 0, RENDER_STYLE=1;
+var RENDER_CULL= 0, RENDER_COLOUR= 1, RENDER_TRANSPARENT=2;
+
 VisApp.prototype.init = function(container) {
     BaseApp.prototype.init.call(this, container);
     this.data = null;
@@ -127,6 +131,8 @@ VisApp.prototype.init = function(container) {
     this.guiData = null;
     //Time slider
     this.sliderPos = 0;
+    //Rendering style
+    this.renderStyle = RENDER_CULL;
 };
 
 VisApp.prototype.update = function() {
@@ -211,6 +217,8 @@ VisApp.prototype.createGUI = function() {
         this.Slider = "#5f7c9d";
         this.Ground = '#16283c';
         this.Background = '#5c5f64';
+        //Render styles
+        this.RenderStyle = '';
     };
 
     var gui = new dat.GUI();
@@ -239,6 +247,10 @@ VisApp.prototype.createGUI = function() {
         main.guiChanged();
     });
 
+    this.guiAppear.add(this.guiControls, 'RenderStyle', ['Cull', 'Colour', 'Transparent']).onChange(function(value) {
+        main.styleChanged(value);
+    });
+
     this.guiAppear.addColor(this.guiControls, 'Slider').onChange(function(value) {
         main.sliderColourChanged(value);
     });
@@ -254,6 +266,21 @@ VisApp.prototype.createGUI = function() {
 };
 
 VisApp.prototype.guiChanged = function() {
+    this.updateRequired = true;
+};
+
+VisApp.prototype.styleChanged = function(value) {
+    switch (value) {
+        case 'Cull':
+            this.renderStyle = RENDER_CULL;
+            break;
+        case 'Colour':
+            this.renderStyle = RENDER_COLOUR;
+            break;
+        case 'Transparent':
+            this.renderStyle = RENDER_TRANSPARENT;
+            break;
+    }
     this.updateRequired = true;
 };
 
@@ -303,7 +330,9 @@ VisApp.prototype.generateData = function() {
 
     //Create node geometry
     var sphereGeometry = new THREE.SphereGeometry(1,20,20);
-    var material = new THREE.MeshPhongMaterial({color: 0x7777ff});
+    var defaultMaterial = new THREE.MeshPhongMaterial({color: 0x7777ff});
+    var colourMaterial = new THREE.MeshPhongMaterial({color: 0x141414});
+    var transparentMaterial = new THREE.MeshPhongMaterial({color: 0x7777ff, transparent: true, opacity: 0.1});
 
     var nodes = [];
     //Keep track of which nodes have been visited
@@ -319,9 +348,15 @@ VisApp.prototype.generateData = function() {
         var diff = this.guiControls.Selection/2;
         var minYear = this.guiControls.Year - diff;
         var maxYear = this.guiControls.Year + diff;
+        var renderState = RENDER_NORMAL;
+        var renderStyle = this.renderStyle; //RENDER_TRANSPARENT;
         //DEBUG
         //console.log("Max=", maxYear, " min=", minYear);
-        if(embed >= 0 && recip >= 0 && year >= minYear && year <= maxYear) {
+        if(embed >= 0 && recip >= 0) {
+            //Determine how we render this node
+            if(year < minYear || year > maxYear) {
+                renderState = RENDER_STYLE;
+            }
             //Examine data and adjust accordingly
             updateRequired = this.analyseItem(item, updates);
             if(updateRequired) {
@@ -334,34 +369,35 @@ VisApp.prototype.generateData = function() {
                 }
             }
             //Check any filtering
-            var render = true;
             for(var key in extraData) {
                 if(extraData[key] != "" && extraData[key] != item[key]) {
-                    render = false;
+                    renderState = RENDER_STYLE;
                     break;
                 }
             }
-            if(render) {
-                var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
-                node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
-                node.position.y = item["Bodily Reciprocity"] - 50;
-                node.position.z = this.sliderEnabled ? (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
-                var labelPos = new THREE.Vector3();
-                labelPos.x = node.position.x;
-                labelPos.y = node.position.y;
-                labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
-                //Give node a name
-                node.name = "Node" + this.nodesRendered++;
-                nodes.push(node);
-                this.scene.add(node);
-                this.generateLabel(item["Project name"], labelPos);
-                ++this.objectsRendered;
-            }
+            if(renderState != RENDER_NORMAL && renderStyle == RENDER_CULL) continue;
+
+            var nodeMaterial = renderState == RENDER_NORMAL ? defaultMaterial : renderStyle == RENDER_COLOUR ? colourMaterial : transparentMaterial;
+            //var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
+            var node = new THREE.Mesh(sphereGeometry, nodeMaterial);
+            node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
+            node.position.y = item["Bodily Reciprocity"] - 50;
+            node.position.z = this.sliderEnabled ? (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
+            var labelPos = new THREE.Vector3();
+            labelPos.x = node.position.x;
+            labelPos.y = node.position.y;
+            labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
+            //Give node a name
+            node.name = "Node" + this.nodesRendered++;
+            nodes.push(node);
+            this.scene.add(node);
+            this.generateLabel(item["Project name"], labelPos, nodeMaterial.color, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
+            ++this.objectsRendered;
         }
     }
 };
 
-VisApp.prototype.generateLabel = function(name, position) {
+VisApp.prototype.generateLabel = function(name, position, color, opacity) {
     var fontface = "Arial";
     var spacing = 10;
 
@@ -378,7 +414,8 @@ VisApp.prototype.generateLabel = function(name, position) {
 
     context.fillStyle = "rgba(255, 255, 255, 0.0)";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = 'White';
+    context.fillStyle = "rgba(" + color.r*255 + "," + color.g*255 + "," + color.b*255 + "," + "1.0)";
+    //context.fillStyle = "rgba(20, 20, 20, 1.0)";
     context.font = this.guiControls.fontSize + "px " + fontface;
 
     context.fillText(name, canvas.width/2, canvas.height/2);
@@ -389,8 +426,9 @@ VisApp.prototype.generateLabel = function(name, position) {
 
     //texture.needsUpdate = true;
     var spriteMaterial = new THREE.SpriteMaterial({
-            //color: 0xffffff,
-            //transparent: false,
+            //color: color,
+            transparent: false,
+            opacity: opacity,
             useScreenCoordinates: false,
             alignment: THREE.SpriteAlignment.bottomCenter,
             blending: THREE.AdditiveBlending,
@@ -736,6 +774,20 @@ $(document).ready(function() {
     });
     $("#camTop").on("click", function(evt) {
         app.changeView(TOP);
+    });
+
+    $('#screen').on("click", function(event) {
+        event.preventDefault();
+        var can = app.renderer.domElement;
+        if (can) {
+            try {
+                can.toBlob(function(blob) {
+                    saveAs(blob, "screenShot.png");
+                }, "image/png");
+            } catch(e) {
+                alert("Couldn't save screenshot");
+            }
+        }
     });
 
     app.run();

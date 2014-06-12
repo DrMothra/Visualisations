@@ -31,7 +31,7 @@ BaseApp.prototype.init = function(container) {
 }
 
 BaseApp.prototype.createRenderer = function() {
-    this.renderer = new THREE.WebGLRenderer();
+    this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true});
     this.renderer.setClearColor(0x5c5f64, 1.0);
     //this.renderer.setSize(1024, 768);
     this.renderer.shadowMapEnabled = true;

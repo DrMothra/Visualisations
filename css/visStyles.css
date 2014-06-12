@@ -65,3 +65,13 @@ body {
 .infoHeader {
     text-align: center;
 }
+.vis-button {
+    background-color: rgba(150, 150, 150, 0.5);
+    color: #7fa5ff;
+}
+.screenShot {
+    position: absolute;
+    top: 470px;
+    left: 50px;
+    /*padding: 5px;*/
+}
