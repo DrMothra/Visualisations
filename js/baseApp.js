@@ -28,7 +28,7 @@ BaseApp.prototype.init = function(container) {
     //this.initMouse();
     this.createControls();
     this.projector = new THREE.Projector();
-}
+};
 
 BaseApp.prototype.createRenderer = function() {
     this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true});
@@ -37,40 +37,42 @@ BaseApp.prototype.createRenderer = function() {
     this.renderer.shadowMapEnabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild( this.renderer.domElement );
-}
+    var self = this;
+
+    this.container.addEventListener('mousedown', function(event) {
+        self.mouseClicked(event);
+    }, false);
+};
+
+BaseApp.prototype.mouseClicked = function(event) {
+    var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
+    this.projector.unprojectVector(vector, this.camera);
+
+    var raycaster = new THREE.Raycaster(this.camera.position, vector.sub(this.camera.position).normalize());
+
+    this.pickedObjects.length = 0;
+    this.pickedObjects = raycaster.intersectObjects(this.scene.children, true);
+};
 
 BaseApp.prototype.createScene = function() {
     this.scene = new THREE.Scene();
 
     var ambientLight = new THREE.AmbientLight(0x383838);
     this.scene.add(ambientLight);
-    //this.scene.add(this.camera);
 
     var spotLight = new THREE.SpotLight(0xffffff);
     spotLight.position.set(300, 300, 300);
     spotLight.intensity = 1;
     this.scene.add(spotLight);
-
-    /*
-    var root = new THREE.Object3D();
-    root.name = "RootNode";
-    this.scene.add(root);
-    this.root = root;
-    */
-}
+};
 
 BaseApp.prototype.createCamera = function() {
-    /*
-    offsetLeft = this.container.offsetLeft;
-    offsetTop = this.container.offsetTop;
-    offsetWidth = this.container.offsetWidth;
-    offsetHeight = this.container.offsetHeight;
-    */
+
     this.camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000 );
     this.camera.position.set( 0, 0, 150 );
 
     console.log('dom =', this.renderer.domElement);
-}
+};
 
 BaseApp.prototype.createControls = function() {
     this.controls = new THREE.TrackballControls(this.camera, this.container);
@@ -85,14 +87,12 @@ BaseApp.prototype.createControls = function() {
     this.controls.dynamicDampingFactor = 0.3;
 
     this.controls.keys = [ 65, 83, 68 ];
-
-    var self = this;
-}
+};
 
 BaseApp.prototype.update = function() {
     //Do any updates
     this.controls.update();
-}
+};
 
 BaseApp.prototype.run = function(timestamp) {
     //Calculate elapsed time
@@ -105,4 +105,4 @@ BaseApp.prototype.run = function(timestamp) {
     var self = this;
     this.update();
     requestAnimationFrame(function(timestamp) { self.run(timestamp); });
-}
+};

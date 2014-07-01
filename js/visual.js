@@ -164,6 +164,15 @@ VisApp.prototype.update = function() {
             }
         }
     }
+
+    //Object selection
+    if(this.pickedObjects.length > 0) {
+        console.log("Picked ", this.pickedObjects.length, "objects");
+        for(var hit=0; hit<this.pickedObjects.length; ++hit) {
+            console.log('Picked ', this.pickedObjects[hit].object.name);
+        }
+        this.pickedObjects.length = 0;
+    }
 };
 
 VisApp.prototype.createScene = function() {
@@ -186,17 +195,25 @@ VisApp.prototype.createScene = function() {
 VisApp.prototype.reDraw = function() {
     //Remove all nodes and labels
     while(this.nodesRendered--) {
-        var node = this.scene.getObjectByName("Node"+this.nodesRendered);
-        if(node) {
-            this.scene.remove(node);
+        var name;
+        for(var child=0; child<this.scene.children.length; ++child) {
+            name = this.scene.children[child].name;
+            if(name.indexOf('Node') >= 0) {
+                this.scene.remove(this.scene.children[child]);
+                break;
+            }
         }
     }
     this.nodesRendered = 0;
 
     while(this.spritesRendered--) {
-        var label = this.scene.getObjectByName("Sprite"+this.spritesRendered);
-        if(label) {
-            this.scene.remove(label);
+        var name;
+        for(var child=0; child<this.scene.children.length; ++child) {
+            name = this.scene.children[child].name;
+            if(name.indexOf('Sprite') >= 0) {
+                this.scene.remove(this.scene.children[child]);
+                break;
+            }
         }
     }
     this.spritesRendered = 0;
@@ -214,6 +231,7 @@ VisApp.prototype.createGUI = function() {
         this.scaleY = 5;
         this.filename = '';
         //Colours
+        this.Text = [255, 255, 255];
         this.Slider = "#5f7c9d";
         this.Ground = '#16283c';
         this.Background = '#5c5f64';
@@ -251,6 +269,9 @@ VisApp.prototype.createGUI = function() {
         main.styleChanged(value);
     });
 
+    this.guiAppear.addColor(this.guiControls, 'Text').onChange(function(value) {
+        main.textColourChanged(value);
+    });
     this.guiAppear.addColor(this.guiControls, 'Slider').onChange(function(value) {
         main.sliderColourChanged(value);
     });
@@ -284,6 +305,9 @@ VisApp.prototype.styleChanged = function(value) {
     this.updateRequired = true;
 };
 
+VisApp.prototype.textColourChanged = function(value) {
+    this.updateRequired = true;
+};
 VisApp.prototype.sliderColourChanged = function(value) {
     var slider = this.scene.getObjectByName('timeSlider', true);
     if(slider) {
@@ -388,10 +412,11 @@ VisApp.prototype.generateData = function() {
             labelPos.y = node.position.y;
             labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
             //Give node a name
-            node.name = "Node" + this.nodesRendered++;
+            node.name = 'Node ' + item["Project name"];
+            ++this.nodesRendered;
             nodes.push(node);
             this.scene.add(node);
-            this.generateLabel(item["Project name"], labelPos, nodeMaterial.color, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
+            this.generateLabel(item["Project name"], labelPos, this.guiControls.Text, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
             ++this.objectsRendered;
         }
     }
@@ -414,8 +439,12 @@ VisApp.prototype.generateLabel = function(name, position, color, opacity) {
 
     context.fillStyle = "rgba(255, 255, 255, 0.0)";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "rgba(" + color.r*255 + "," + color.g*255 + "," + color.b*255 + "," + "1.0)";
-    //context.fillStyle = "rgba(20, 20, 20, 1.0)";
+
+    var red = Math.round(color[0]);
+    var green = Math.round(color[1]);
+    var blue = Math.round(color[2]);
+
+    context.fillStyle = "rgba(" + red + "," + green + "," + blue + "," + "1.0)";
     context.font = this.guiControls.fontSize + "px " + fontface;
 
     context.fillText(name, canvas.width/2, canvas.height/2);
@@ -759,6 +788,8 @@ $(document).ready(function() {
     app.createGUI();
 
     //GUI callbacks
+    //document.addEventListener('mousedown', app.onMouseDown, false);
+
     $("#chooseFile").on("change", function(evt) {
         app.onSelectFile(evt);
     });
