@@ -61,9 +61,21 @@ body {
 .infoCell {
     margin-top: 5px;
     margin-bottom: 5px;
+    overflow: hidden;
 }
 .infoHeader {
     text-align: center;
+}
+.nodeInfo {
+    width: 300px;
+    top: 300px;
+    left: 300px;
+    padding: 5px;
+    position: absolute;
+    border-radius: 5px;
+    background-color: rgba(119, 119, 119, 0.50);
+    color: #7fa5ff;
+    margin: 0px;
 }
 .vis-button {
     background-color: rgba(150, 150, 150, 0.5);

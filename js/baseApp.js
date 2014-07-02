@@ -25,7 +25,6 @@ BaseApp.prototype.init = function(container) {
     this.createRenderer();
     console.log("BaseApp renderer =", this.renderer);
     this.createCamera();
-    //this.initMouse();
     this.createControls();
     this.projector = new THREE.Projector();
 };
@@ -33,7 +32,6 @@ BaseApp.prototype.init = function(container) {
 BaseApp.prototype.createRenderer = function() {
     this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true});
     this.renderer.setClearColor(0x5c5f64, 1.0);
-    //this.renderer.setSize(1024, 768);
     this.renderer.shadowMapEnabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild( this.renderer.domElement );
@@ -45,6 +43,11 @@ BaseApp.prototype.createRenderer = function() {
 };
 
 BaseApp.prototype.mouseClicked = function(event) {
+    //Update mouse state
+    this.mouse.x = event.clientX;
+    this.mouse.y = event.clientY;
+    this.mouse.clicked = true;
+
     var vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
     this.projector.unprojectVector(vector, this.camera);
 
@@ -92,6 +95,7 @@ BaseApp.prototype.createControls = function() {
 BaseApp.prototype.update = function() {
     //Do any updates
     this.controls.update();
+    this.mouse.clicked = false;
 };
 
 BaseApp.prototype.run = function(timestamp) {

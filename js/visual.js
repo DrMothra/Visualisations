@@ -106,6 +106,23 @@ function eliminateInvalidCells(arr) {
 
     return out;
 }
+
+function populatePanel(data) {
+    //Fill in node panel details and display
+    var element = $('#nodePanel');
+    element.show();
+    element.css('top', '150px');
+    var left = (window.innerWidth/2) - 100;
+    element.css('left', left + 'px');
+
+    for(var key in data) {
+        var item = document.getElementById(key);
+        if (item) {
+            item.innerHTML = data[key];
+        }
+    }
+}
+
 //Init this app from base
 function VisApp() {
     BaseApp.call(this);
@@ -137,6 +154,8 @@ VisApp.prototype.init = function(container) {
 
 VisApp.prototype.update = function() {
     //Perform any updates
+    var clicked = this.mouse.clicked;
+
     BaseApp.prototype.update.call(this);
 
     //Update time slider
@@ -166,12 +185,34 @@ VisApp.prototype.update = function() {
     }
 
     //Object selection
+
+
     if(this.pickedObjects.length > 0) {
-        console.log("Picked ", this.pickedObjects.length, "objects");
+        //DEBUG
+        //console.log("Picked ", this.pickedObjects.length, "objects");
+        //Show node info if selected
+        var showingNode = false;
         for(var hit=0; hit<this.pickedObjects.length; ++hit) {
-            console.log('Picked ', this.pickedObjects[hit].object.name);
+            var name = this.pickedObjects[hit].object.name;
+            if(name.indexOf('Node') >= 0) {
+                //Remove 'node'
+                name = name.substr(5, name.length-5);
+                var data = this.getDataItem(name);
+                if(data) {
+                    populatePanel(data);
+                    showingNode = true;
+                    break;
+                }
+            }
+        }
+        if(!showingNode) {
+            $("#nodePanel").hide();
         }
         this.pickedObjects.length = 0;
+    } else {
+        if(clicked) {
+            $("#nodePanel").hide();
+        }
     }
 };
 
@@ -422,6 +463,18 @@ VisApp.prototype.generateData = function() {
     }
 };
 
+VisApp.prototype.getDataItem = function(name) {
+    //Get data given name
+    for(var i=0; i<this.data.length; ++i) {
+        var item = this.data[i];
+        if(item["Project name"] === name) {
+            return item;
+        }
+    }
+
+    return null;
+};
+
 VisApp.prototype.generateLabel = function(name, position, color, opacity) {
     var fontface = "Arial";
     var spacing = 10;
@@ -655,6 +708,12 @@ VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
     document.getElementById('rendered').innerHTML = objects;
 };
 
+VisApp.prototype.playVideo = function() {
+    //Get video url and play it
+    var video =  document.getElementById('Video').innerHTML;
+    console.log("Play video", video);
+};
+
 function addAxes(group) {
     //Create axes;
     //Set up common material
@@ -805,6 +864,9 @@ $(document).ready(function() {
     });
     $("#camTop").on("click", function(evt) {
         app.changeView(TOP);
+    });
+    $("#Video").on("click", function(evt) {
+        app.playVideo();
     });
 
     $('#screen').on("click", function(event) {
