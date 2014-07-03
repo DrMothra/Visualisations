@@ -121,6 +121,23 @@ function populatePanel(data) {
             item.innerHTML = data[key];
         }
     }
+
+    //Set up links
+    var video = $('#Video');
+    if(video) {
+        var link = video[0].innerHTML;
+        if(link) {
+            video[0].innerHTML = '<a href="'+link+'"'+'target="_blank"'+'>Click for video</a>';
+        }
+    }
+
+    var source = $('#Source');
+    if(source) {
+        var link = source[0].innerHTML;
+        if(link) {
+            source[0].innerHTML = '<a href="'+link+'"'+'target="_blank"'+'>Click for source</a>';
+        }
+    }
 }
 
 //Init this app from base
@@ -655,7 +672,7 @@ VisApp.prototype.parseFile = function() {
     };
 
     // Read in the file
-    reader.readAsText(this.dataFile);
+    reader.readAsText(this.dataFile, 'ISO-8859-1');
 };
 
 VisApp.prototype.onSelectFile = function(evt) {
@@ -706,12 +723,6 @@ VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
     document.getElementById('startYear').innerHTML = year - duration/2;
     document.getElementById('endYear').innerHTML = year + duration/2;
     document.getElementById('rendered').innerHTML = objects;
-};
-
-VisApp.prototype.playVideo = function() {
-    //Get video url and play it
-    var video =  document.getElementById('Video').innerHTML;
-    console.log("Play video", video);
 };
 
 function addAxes(group) {
@@ -864,9 +875,6 @@ $(document).ready(function() {
     });
     $("#camTop").on("click", function(evt) {
         app.changeView(TOP);
-    });
-    $("#Video").on("click", function(evt) {
-        app.playVideo();
     });
 
     $('#screen').on("click", function(event) {
