@@ -250,7 +250,7 @@ VisApp.prototype.createScene = function() {
     this.sliderEnabled = true;
 };
 
-VisApp.prototype.reDraw = function() {
+VisApp.prototype.removeNodes = function() {
     //Remove all nodes and labels
     while(this.nodesRendered--) {
         var name;
@@ -275,6 +275,11 @@ VisApp.prototype.reDraw = function() {
         }
     }
     this.spritesRendered = 0;
+};
+
+VisApp.prototype.reDraw = function() {
+    //Remove nodes
+    this.removeNodes();
 
     this.generateData();
 };
@@ -282,6 +287,7 @@ VisApp.prototype.reDraw = function() {
 VisApp.prototype.createGUI = function() {
     //Create GUI - use dat.GUI for now
     var main = this;
+
     this.guiControls = new function() {
         this.font = 'Arial';
         this.fontSize = 18;
@@ -474,7 +480,7 @@ VisApp.prototype.generateData = function() {
             ++this.nodesRendered;
             nodes.push(node);
             this.scene.add(node);
-            this.generateLabel(item["Project name"], labelPos, this.guiControls.Text, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
+            this.generateLabel(item["Project name"], labelPos, renderState, renderStyle, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
             ++this.objectsRendered;
         }
     }
@@ -492,7 +498,7 @@ VisApp.prototype.getDataItem = function(name) {
     return null;
 };
 
-VisApp.prototype.generateLabel = function(name, position, color, opacity) {
+VisApp.prototype.generateLabel = function(name, position, state, style, opacity) {
     var fontface = "Arial";
     var spacing = 10;
 
@@ -510,9 +516,14 @@ VisApp.prototype.generateLabel = function(name, position, color, opacity) {
     context.fillStyle = "rgba(255, 255, 255, 0.0)";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    var red = Math.round(color[0]);
-    var green = Math.round(color[1]);
-    var blue = Math.round(color[2]);
+    var red, green, blue;
+    if(state == RENDER_STYLE && style == RENDER_COLOUR) {
+        red = green = blue = 20;
+    } else {
+        red = Math.round(this.guiControls.Text[0]);
+        green = Math.round(this.guiControls.Text[1]);
+        blue = Math.round(this.guiControls.Text[2]);
+    }
 
     context.fillStyle = "rgba(" + red + "," + green + "," + blue + "," + "1.0)";
     context.font = this.guiControls.fontSize + "px " + fontface;
@@ -686,6 +697,10 @@ VisApp.prototype.onSelectFile = function(evt) {
             this.filename = "";
             return;
         }
+        //Clear old data first
+        if(this.dataFile) {
+            this.reset();
+        }
         this.dataFile = files[0];
         this.filename = this.dataFile.name;
         console.log("File chosen", this.filename);
@@ -723,6 +738,25 @@ VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
     document.getElementById('startYear').innerHTML = year - duration/2;
     document.getElementById('endYear').innerHTML = year + duration/2;
     document.getElementById('rendered').innerHTML = objects;
+};
+
+VisApp.prototype.reset = function() {
+    //Reset rendering and data
+    this.removeNodes();
+
+    //Clear data
+    this.data = null;
+    this.dataFile = null;
+    this.filename = "";
+
+    //Clear gui controls
+    this.guiControls.filename = null;
+    this.guiControls = null;
+    this.guiAppear = null;
+    this.guiData = null;
+    this.gui.destroy();
+    this.renderStyle = RENDER_CULL;
+    this.createGUI();
 };
 
 function addAxes(group) {

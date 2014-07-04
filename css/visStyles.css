@@ -5,18 +5,24 @@ body {
     margin: 0;
     overflow: hidden;
 }
-
-.fileLoader {
+.version {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: #7fa5ff;
+}
+.mainButton {
     border-radius: 5px;
     position: absolute;
     padding: 5px;
-    top: 50px;
-    left: 75px;
     background-color: rgba(150, 150, 150, 0.5);
     overflow: hidden;
     color: #7fa5ff;
 }
-
+#loadButton {
+    top: 50px;
+    left: 75px;
+}
 .upload {
     position: absolute;
     top: 0px;
@@ -29,11 +35,10 @@ body {
     background-color: #004040;
     cursor: pointer;
 }
-
 .camControls {
     position: absolute;
     border-radius: 5px;
-    top: 100px;
+    top: 110px;
     left: 40px;
     background-color: rgba(150, 150, 150, 0);
     color: #7fa5ff;
@@ -52,7 +57,7 @@ body {
     padding: 5px;
     position: absolute;
     border-radius: 5px;
-    top: 250px;
+    top: 280px;
     left: 30px;
     background-color: rgba(150, 150, 150, 0.5);
     color: #7fa5ff;
@@ -83,7 +88,7 @@ body {
 }
 .screenShot {
     position: absolute;
-    top: 470px;
+    top: 485px;
     left: 50px;
     /*padding: 5px;*/
 }
