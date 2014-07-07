@@ -157,6 +157,7 @@ VisApp.prototype.init = function(container) {
     this.updateRequired = false;
     this.nodesRendered = 0;
     this.spritesRendered = 0;
+    this.nodesInSlider = 0;
     this.guiControls = null;
     this.dataFile = null;
     this.filename = "";
@@ -195,7 +196,7 @@ VisApp.prototype.update = function() {
                 }
                 //Update GUI
                 this.reDraw();
-                this.updateInfoPanel(this.guiControls.Year, this.guiControls.Selection, this.objectsRendered);
+                this.updateInfoPanel(this.guiControls.Year, this.guiControls.Selection, this.nodesInSlider);
                 this.updateRequired = false;
             }
         }
@@ -296,11 +297,14 @@ VisApp.prototype.createGUI = function() {
         this.filename = '';
         //Colours
         this.Text = [255, 255, 255];
+        this.Node = "#7777ff";
         this.Slider = "#5f7c9d";
         this.Ground = '#16283c';
         this.Background = '#5c5f64';
         //Render styles
         this.RenderStyle = '';
+        //Node shapes
+        this.NodeStyle = 'Sphere';
     };
 
     var gui = new dat.GUI();
@@ -333,8 +337,14 @@ VisApp.prototype.createGUI = function() {
         main.styleChanged(value);
     });
 
+    this.guiAppear.add(this.guiControls, 'NodeStyle', ['Sphere', 'Cube', 'Diamond']).onChange(function(value) {
+        main.nodeChanged(value);
+    });
     this.guiAppear.addColor(this.guiControls, 'Text').onChange(function(value) {
         main.textColourChanged(value);
+    });
+    this.guiAppear.addColor(this.guiControls, 'Node').onChange(function(value) {
+        main.nodeColourChanged(value);
     });
     this.guiAppear.addColor(this.guiControls, 'Slider').onChange(function(value) {
         main.sliderColourChanged(value);
@@ -369,7 +379,14 @@ VisApp.prototype.styleChanged = function(value) {
     this.updateRequired = true;
 };
 
+VisApp.prototype.nodeChanged = function(value) {
+    this.updateRequired = true;
+};
+
 VisApp.prototype.textColourChanged = function(value) {
+    this.updateRequired = true;
+};
+VisApp.prototype.nodeColourChanged = function(value) {
     this.updateRequired = true;
 };
 VisApp.prototype.sliderColourChanged = function(value) {
@@ -417,8 +434,23 @@ VisApp.prototype.generateData = function() {
     var extraData = this.guiControls.extra;
 
     //Create node geometry
-    var sphereGeometry = new THREE.SphereGeometry(1,20,20);
+    var nodeGeometry;
+    switch(this.guiControls.NodeStyle) {
+        case 'Sphere':
+            nodeGeometry = new THREE.SphereGeometry(1,20,20);
+            break;
+
+        case 'Cube':
+            nodeGeometry = new THREE.CubeGeometry(2, 2, 2);
+            break;
+
+        case 'Diamond':
+            nodeGeometry = new THREE.OctahedronGeometry(2);
+            break;
+    }
+
     var defaultMaterial = new THREE.MeshPhongMaterial({color: 0x7777ff});
+    defaultMaterial.color.setStyle(this.guiControls.Node);
     var colourMaterial = new THREE.MeshPhongMaterial({color: 0x141414});
     var transparentMaterial = new THREE.MeshPhongMaterial({color: 0x7777ff, transparent: true, opacity: 0.1});
 
@@ -427,6 +459,7 @@ VisApp.prototype.generateData = function() {
     var visited = {};
     var updateRequired;
     this.objectsRendered = 0;
+    this.nodesInSlider = 0;
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
@@ -444,6 +477,8 @@ VisApp.prototype.generateData = function() {
             //Determine how we render this node
             if(year < minYear || year > maxYear) {
                 renderState = RENDER_STYLE;
+            } else {
+                ++this.nodesInSlider;
             }
             //Examine data and adjust accordingly
             updateRequired = this.analyseItem(item, updates);
@@ -467,7 +502,7 @@ VisApp.prototype.generateData = function() {
 
             var nodeMaterial = renderState == RENDER_NORMAL ? defaultMaterial : renderStyle == RENDER_COLOUR ? colourMaterial : transparentMaterial;
             //var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
-            var node = new THREE.Mesh(sphereGeometry, nodeMaterial);
+            var node = new THREE.Mesh(nodeGeometry, nodeMaterial);
             node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
             node.position.y = item["Bodily Reciprocity"] - 50;
             node.position.z = this.sliderEnabled ? (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
