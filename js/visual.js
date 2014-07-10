@@ -211,25 +211,29 @@ VisApp.prototype.update = function() {
         //Show node info if selected
         var showingNode = false;
         for(var hit=0; hit<this.pickedObjects.length; ++hit) {
-            var name = this.pickedObjects[hit].object.name;
-            if(name.indexOf('Node') >= 0) {
+            var node = this.pickedObjects[hit].object.name;
+            if(node.indexOf('Node') >= 0) {
                 //Remove 'node'
-                name = name.substr(5, name.length-5);
+                var name = node.substr(5, node.length-5);
                 var data = this.getDataItem(name);
                 if(data) {
                     populatePanel(data);
                     showingNode = true;
+                    //Draw outline around node
+                    this.outlineNode(node);
                     break;
                 }
             }
         }
         if(!showingNode) {
             $("#nodePanel").hide();
+            this.outlineNode(false);
         }
         this.pickedObjects.length = 0;
     } else {
         if(clicked) {
             $("#nodePanel").hide();
+            this.outlineNode(false);
         }
     }
 };
@@ -278,6 +282,38 @@ VisApp.prototype.removeNodes = function() {
     this.spritesRendered = 0;
 };
 
+VisApp.prototype.outlineNode = function(name) {
+    //Generate or remove highlight around given node
+    var node;
+    if(!name) {
+        node = this.scene.getObjectByName(name +'outline');
+        if(node) {
+            this.scene.remove(node);
+        }
+        return;
+    }
+    //Ensure we aren't clicking same node twice
+    node = this.scene.getObjectByName(name +'outline');
+    if(node) return;
+
+    node = this.scene.getObjectByName(name);
+    if(node) {
+        var outlineMat = new THREE.MeshBasicMaterial({color : 0xff0000, side: THREE.BackSide});
+        var outlineMesh;
+        var outlineGeom;
+        switch(this.guiControls.NodeStyle) {
+            case 'Sphere':
+                outlineGeom = new THREE.SphereGeometry(1, 20, 20);
+                outlineMesh = new THREE.Mesh(outlineGeom, outlineMat);
+                outlineMesh.name = name +'outline';
+                break;
+        }
+        outlineMesh.position = node.position;
+        outlineMesh.scale.multiplyScalar(1.1);
+        this.scene.add(outlineMesh);
+    }
+};
+
 VisApp.prototype.reDraw = function() {
     //Remove nodes
     this.removeNodes();
@@ -295,6 +331,10 @@ VisApp.prototype.createGUI = function() {
         this.scaleX = 10;
         this.scaleY = 5;
         this.filename = '';
+        this.ShowLabels = true;
+        this.LabelTop = 'Project name';
+        this.LabelBottom = 'Project name';
+
         //Colours
         this.Text = [255, 255, 255];
         this.Node = "#7777ff";
@@ -340,6 +380,7 @@ VisApp.prototype.createGUI = function() {
     this.guiAppear.add(this.guiControls, 'NodeStyle', ['Sphere', 'Cube', 'Diamond']).onChange(function(value) {
         main.nodeChanged(value);
     });
+
     this.guiAppear.addColor(this.guiControls, 'Text').onChange(function(value) {
         main.textColourChanged(value);
     });
@@ -355,7 +396,9 @@ VisApp.prototype.createGUI = function() {
     this.guiAppear.addColor(this.guiControls, 'Background').onChange(function(value) {
         main.backgroundColourChanged(value);
     });
-
+    this.guiAppear.add(this.guiControls, 'ShowLabels').onChange(function(value) {
+        main.labelChanged(value);
+    });
     this.guiData = gui.addFolder("Data");
     this.gui = gui;
 };
@@ -403,6 +446,9 @@ VisApp.prototype.groundColourChanged = function(value) {
 };
 VisApp.prototype.backgroundColourChanged = function(value) {
     this.renderer.setClearColor(value, 1.0);
+};
+VisApp.prototype.labelChanged = function(value) {
+    this.updateRequired = true;
 };
 
 VisApp.prototype.analyseItem = function(item, updatedData) {
@@ -458,7 +504,6 @@ VisApp.prototype.generateData = function() {
     //Keep track of which nodes have been visited
     var visited = {};
     var updateRequired;
-    this.objectsRendered = 0;
     this.nodesInSlider = 0;
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
@@ -515,8 +560,15 @@ VisApp.prototype.generateData = function() {
             ++this.nodesRendered;
             nodes.push(node);
             this.scene.add(node);
-            this.generateLabel(item["Project name"], labelPos, renderState, renderStyle, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
-            ++this.objectsRendered;
+            if(this.guiControls.ShowLabels) {
+                var top = this.guiControls.LabelTop;
+                var bottom = this.guiControls.LabelBottom;
+                var colour = this.guiControls.Text;
+                if(renderState != RENDER_NORMAL && renderStyle == RENDER_COLOUR) {
+                    colour = [20, 20, 20];
+                }
+                this.generateLabels(item[top], item[bottom], labelPos, colour, nodeMaterial.opacity ? nodeMaterial.opacity : 1);
+            }
         }
     }
 };
@@ -533,7 +585,26 @@ VisApp.prototype.getDataItem = function(name) {
     return null;
 };
 
-VisApp.prototype.generateLabel = function(name, position, state, style, opacity) {
+VisApp.prototype.generateLabels = function(topName, bottomName, position, colour, opacity) {
+
+    var fontSize = this.guiControls.fontSize;
+    var scale = new THREE.Vector3(this.guiControls.scaleX, this.guiControls.scaleY, 1);
+    position.top = true;
+
+    var labelTop = createLabel(topName, position, scale, colour, fontSize, opacity);
+    //Give sprite a name
+    labelTop.name = "Sprite" + this.spritesRendered++;
+    this.scene.add(labelTop);
+
+    position.top = false;
+    var labelBottom = createLabel(bottomName, position, scale, colour, fontSize, opacity);
+    //Give sprite a name
+    labelBottom.name = "Sprite" + this.spritesRendered++;
+    this.scene.add(labelBottom);
+};
+
+function createLabel(name, position, scale, colour, fontSize, opacity) {
+
     var fontface = "Arial";
     var spacing = 10;
 
@@ -544,24 +615,19 @@ VisApp.prototype.generateLabel = function(name, position, state, style, opacity)
 
     canvas.width = textWidth + (spacing * 2);
     canvas.width *= 2;
-    canvas.height = this.guiControls.fontSize;
+    canvas.height = fontSize;
     context.textAlign = "center";
     context.textBaseline = "middle";
 
     context.fillStyle = "rgba(255, 255, 255, 0.0)";
     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    var red, green, blue;
-    if(state == RENDER_STYLE && style == RENDER_COLOUR) {
-        red = green = blue = 20;
-    } else {
-        red = Math.round(this.guiControls.Text[0]);
-        green = Math.round(this.guiControls.Text[1]);
-        blue = Math.round(this.guiControls.Text[2]);
-    }
+    var red = Math.round(colour[0]);
+    var green = Math.round(colour[1]);
+    var blue = Math.round(colour[2]);
 
     context.fillStyle = "rgba(" + red + "," + green + "," + blue + "," + "1.0)";
-    context.font = this.guiControls.fontSize + "px " + fontface;
+    context.font = fontSize + "px " + fontface;
 
     context.fillText(name, canvas.width/2, canvas.height/2);
 
@@ -570,28 +636,24 @@ VisApp.prototype.generateLabel = function(name, position, state, style, opacity)
     texture.needsUpdate = true;
 
     //texture.needsUpdate = true;
+    var align = position.top ? THREE.SpriteAlignment.bottomCenter : THREE.SpriteAlignment.topCenter;
     var spriteMaterial = new THREE.SpriteMaterial({
             //color: color,
             transparent: false,
             opacity: opacity,
             useScreenCoordinates: false,
-            alignment: THREE.SpriteAlignment.bottomCenter,
+            alignment: align,
             blending: THREE.AdditiveBlending,
             map: texture}
     );
 
     var sprite = new THREE.Sprite(spriteMaterial);
-    var scaleX = this.guiControls.scaleX;
-    var scaleY = this.guiControls.scaleY;
 
-    sprite.scale.set(scaleX, scaleY, 1);
+    sprite.scale.set(scale.x, scale.y, 1);
     sprite.position.set(position.x, position.y, position.z);
 
-    //Give sprite a name
-    sprite.name = "Sprite" + this.spritesRendered++;
-
-    this.scene.add(sprite);
-};
+    return sprite;
+}
 
 VisApp.prototype.generateGUIControls = function() {
     //Add filename to gui
@@ -679,7 +741,15 @@ VisApp.prototype.generateGUIControls = function() {
             });
         }
     }
-
+    //Labelling
+    var displayLabels = guiLabels;
+    displayLabels.splice(0, 0, 'Project name');
+    this.guiAppear.add(this.guiControls, 'LabelTop', displayLabels).onChange(function(value) {
+        main.labelChanged(value);
+    });
+    this.guiAppear.add(this.guiControls, 'LabelBottom', displayLabels).onChange(function(value) {
+        main.labelChanged(value);
+    });
 };
 
 VisApp.prototype.toggleSlider = function(slider) {
