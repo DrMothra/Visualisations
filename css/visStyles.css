@@ -37,7 +37,6 @@ body {
 }
 .camControls {
     position: absolute;
-    border-radius: 5px;
     top: 110px;
     left: 40px;
     background-color: rgba(150, 150, 150, 0);
@@ -91,4 +90,15 @@ body {
     top: 485px;
     left: 50px;
     /*padding: 5px;*/
+}
+.camPresets {
+    position: absolute;
+    top: 550px;
+    left: 60px;
+}
+.controls {
+    margin: 7px;
+}
+.button-xsmall {
+    font-size: 70%;
 }

@@ -168,6 +168,9 @@ VisApp.prototype.init = function(container) {
     this.sliderPos = 0;
     //Rendering style
     this.renderStyle = RENDER_CULL;
+    this.outlineNodeName = null;
+    this.camPos = [];
+    this.currentCamPos = -1;
 };
 
 VisApp.prototype.update = function() {
@@ -284,33 +287,38 @@ VisApp.prototype.removeNodes = function() {
 
 VisApp.prototype.outlineNode = function(name) {
     //Generate or remove highlight around given node
+
+    //Ensure we aren't clicking same node twice
+    if(this.outlineNodeName == name +'outline') return;
+
+    //Remove any existing highlighting
     var node;
-    if(!name) {
-        node = this.scene.getObjectByName(name +'outline');
+    if(this.outlineNodeName) {
+        node = this.scene.getObjectByName(this.outlineNodeName);
         if(node) {
             this.scene.remove(node);
+            this.outlineNodeName = null;
         }
-        return;
     }
-    //Ensure we aren't clicking same node twice
-    node = this.scene.getObjectByName(name +'outline');
-    if(node) return;
 
-    node = this.scene.getObjectByName(name);
-    if(node) {
-        var outlineMat = new THREE.MeshBasicMaterial({color : 0xff0000, side: THREE.BackSide});
-        var outlineMesh;
-        var outlineGeom;
-        switch(this.guiControls.NodeStyle) {
-            case 'Sphere':
-                outlineGeom = new THREE.SphereGeometry(1, 20, 20);
-                outlineMesh = new THREE.Mesh(outlineGeom, outlineMat);
-                outlineMesh.name = name +'outline';
-                break;
+    if(name) {
+        node = this.scene.getObjectByName(name);
+        if (node) {
+            var outlineMat = new THREE.MeshBasicMaterial({color: 0xff0000, side: THREE.BackSide});
+            var outlineMesh;
+            var outlineGeom;
+            switch (this.guiControls.NodeStyle) {
+                case 'Sphere':
+                    outlineGeom = new THREE.SphereGeometry(1, 20, 20);
+                    outlineMesh = new THREE.Mesh(outlineGeom, outlineMat);
+                    outlineMesh.name = name + 'outline';
+                    this.outlineNodeName = outlineMesh.name;
+                    break;
+            }
+            outlineMesh.position = node.position;
+            outlineMesh.scale.multiplyScalar(1.2);
+            this.scene.add(outlineMesh);
         }
-        outlineMesh.position = node.position;
-        outlineMesh.scale.multiplyScalar(1.1);
-        this.scene.add(outlineMesh);
     }
 };
 
@@ -333,7 +341,7 @@ VisApp.prototype.createGUI = function() {
         this.filename = '';
         this.ShowLabels = true;
         this.LabelTop = 'Project name';
-        this.LabelBottom = 'Project name';
+        this.LabelBottom = '';
 
         //Colours
         this.Text = [255, 255, 255];
@@ -378,7 +386,7 @@ VisApp.prototype.createGUI = function() {
     });
 
     this.guiAppear.add(this.guiControls, 'NodeStyle', ['Sphere', 'Cube', 'Diamond']).onChange(function(value) {
-        main.nodeChanged(value);
+        main.updateRequired = true;
     });
 
     this.guiAppear.addColor(this.guiControls, 'Text').onChange(function(value) {
@@ -422,10 +430,6 @@ VisApp.prototype.styleChanged = function(value) {
     this.updateRequired = true;
 };
 
-VisApp.prototype.nodeChanged = function(value) {
-    this.updateRequired = true;
-};
-
 VisApp.prototype.textColourChanged = function(value) {
     this.updateRequired = true;
 };
@@ -446,9 +450,6 @@ VisApp.prototype.groundColourChanged = function(value) {
 };
 VisApp.prototype.backgroundColourChanged = function(value) {
     this.renderer.setClearColor(value, 1.0);
-};
-VisApp.prototype.labelChanged = function(value) {
-    this.updateRequired = true;
 };
 
 VisApp.prototype.analyseItem = function(item, updatedData) {
@@ -561,8 +562,8 @@ VisApp.prototype.generateData = function() {
             nodes.push(node);
             this.scene.add(node);
             if(this.guiControls.ShowLabels) {
-                var top = this.guiControls.LabelTop;
-                var bottom = this.guiControls.LabelBottom;
+                var top = this.guiControls.LabelTop == '' ? null : this.guiControls.LabelTop;
+                var bottom = this.guiControls.LabelBottom == '' ? null : this.guiControls.LabelBottom;
                 var colour = this.guiControls.Text;
                 if(renderState != RENDER_NORMAL && renderStyle == RENDER_COLOUR) {
                     colour = [20, 20, 20];
@@ -591,16 +592,20 @@ VisApp.prototype.generateLabels = function(topName, bottomName, position, colour
     var scale = new THREE.Vector3(this.guiControls.scaleX, this.guiControls.scaleY, 1);
     position.top = true;
 
-    var labelTop = createLabel(topName, position, scale, colour, fontSize, opacity);
-    //Give sprite a name
-    labelTop.name = "Sprite" + this.spritesRendered++;
-    this.scene.add(labelTop);
+    if(topName) {
+        var labelTop = createLabel(topName, position, scale, colour, fontSize, opacity);
+        //Give sprite a name
+        labelTop.name = "Sprite" + this.spritesRendered++;
+        this.scene.add(labelTop);
+    }
 
     position.top = false;
-    var labelBottom = createLabel(bottomName, position, scale, colour, fontSize, opacity);
-    //Give sprite a name
-    labelBottom.name = "Sprite" + this.spritesRendered++;
-    this.scene.add(labelBottom);
+    if(bottomName) {
+        var labelBottom = createLabel(bottomName, position, scale, colour, fontSize, opacity);
+        //Give sprite a name
+        labelBottom.name = "Sprite" + this.spritesRendered++;
+        this.scene.add(labelBottom);
+    }
 };
 
 function createLabel(name, position, scale, colour, fontSize, opacity) {
@@ -743,12 +748,13 @@ VisApp.prototype.generateGUIControls = function() {
     }
     //Labelling
     var displayLabels = guiLabels;
-    displayLabels.splice(0, 0, 'Project name');
+    displayLabels.splice(0, 0, '', 'Project name');
     this.guiAppear.add(this.guiControls, 'LabelTop', displayLabels).onChange(function(value) {
-        main.labelChanged(value);
+        main.updateRequired = true;
     });
+
     this.guiAppear.add(this.guiControls, 'LabelBottom', displayLabels).onChange(function(value) {
-        main.labelChanged(value);
+        main.updateRequired = true;
     });
 };
 
@@ -835,6 +841,28 @@ VisApp.prototype.changeView = function(view) {
             break;
     }
     this.camera.lookAt(0, 0, 0);
+};
+
+VisApp.prototype.saveCamPos = function() {
+    //Save cam pos and orientation
+    this.camPos.push(this.camera.position);
+    this.camPos.push(this.camera.rotation);
+
+    //DEBUG
+    console.log('Saved cam pos ', this.camera.position);
+    console.log('Saved cam rot ', this.camera.rotation);
+};
+VisApp.prototype.gotoNextCamPos = function() {
+    //Go to next cam pos in list if possible
+    if((this.currentCamPos+1) * 2 >= this.camPos.length) return;
+
+    this.controls.reset();
+    ++this.currentCamPos;
+    var pos = this.camPos[this.currentCamPos];
+    this.camera.position.set(pos.x, pos.y, pos.z);
+    //this.camera.rotation = this.camPos[this.currentCamPos+1];
+    //this.camera.lookAt(0,0,0);
+    this.updateRequired = true;
 };
 
 VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
@@ -1014,6 +1042,16 @@ $(document).ready(function() {
     });
     $("#camTop").on("click", function(evt) {
         app.changeView(TOP);
+    });
+
+    $("#camSave").on("click", function(evt) {
+        app.saveCamPos();
+    });
+    $("#camForward").on("click", function(evt) {
+        app.gotoNextCamPos();
+    });
+    $("#camBackward").on("click", function(evt) {
+        app.gotoPreviousCamPos();
     });
 
     $('#screen').on("click", function(event) {
