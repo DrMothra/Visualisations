@@ -169,6 +169,7 @@ VisApp.prototype.init = function(container) {
     //Rendering style
     this.renderStyle = RENDER_CULL;
     this.outlineNodeName = null;
+    //Camera recording
     this.camPos = [];
     this.currentCamPos = -1;
 };
@@ -844,26 +845,58 @@ VisApp.prototype.changeView = function(view) {
 };
 
 VisApp.prototype.saveCamPos = function() {
-    //Save cam pos and orientation
-    this.camPos.push(this.camera.position);
-    this.camPos.push(this.camera.rotation);
+    //Save camera details
+    var tempCamPos = new THREE.Vector3().copy(this.camera.position);
+    var tempCamRot = new THREE.Quaternion().copy(this.camera.quaternion);
+    var tempLookat = new THREE.Vector3().copy(this.controls.getLookAt());
 
-    //DEBUG
-    console.log('Saved cam pos ', this.camera.position);
-    console.log('Saved cam rot ', this.camera.rotation);
+    var camDetails = {pos : tempCamPos, rot : tempCamRot, look : tempLookat};
+    this.camPos.push(camDetails);
+
+    //Update preset value
+    updateCamPresets(this.currentCamPos+1, this.camPos.length);
 };
+
 VisApp.prototype.gotoNextCamPos = function() {
     //Go to next cam pos in list if possible
-    if((this.currentCamPos+1) * 2 >= this.camPos.length) return;
+    if(this.camPos.length < 0) return;
+
+    if(this.currentCamPos >= this.camPos.length-1) return;
+
+    ++this.currentCamPos;
+    var camDetails = this.camPos[this.currentCamPos];
 
     this.controls.reset();
-    ++this.currentCamPos;
-    var pos = this.camPos[this.currentCamPos];
-    this.camera.position.set(pos.x, pos.y, pos.z);
-    //this.camera.rotation = this.camPos[this.currentCamPos+1];
-    //this.camera.lookAt(0,0,0);
-    this.updateRequired = true;
+    this.controls.setCameraRotation(camDetails.rot);
+    this.camera.position.set(camDetails.pos.x, camDetails.pos.y, camDetails.pos.z);
+    this.controls.setLookAt(camDetails.look);
+
+    //Update preset value
+    updateCamPresets(this.currentCamPos+1, this.camPos.length);
 };
+
+VisApp.prototype.gotoPreviousCamPos = function() {
+    //Go to previous cam pos if possible
+    if(this.camPos.length < 0) return;
+
+    if(this.currentCamPos <= 0) return;
+
+    --this.currentCamPos;
+    var camDetails = this.camPos[this.currentCamPos];
+
+    this.controls.reset();
+    this.controls.setCameraRotation(camDetails.rot);
+    this.camera.position.set(camDetails.pos.x, camDetails.pos.y, camDetails.pos.z);
+    this.controls.setLookAt(camDetails.look);
+
+    //Update preset value
+    updateCamPresets(this.currentCamPos+1, this.camPos.length);
+};
+
+function updateCamPresets(preset, total) {
+    if(preset < 1) preset = '*';
+    document.getElementById('camPresetNum').innerHTML = 'Preset : ' + preset + '/' + total;
+}
 
 VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
     //Update info GUI

@@ -180,6 +180,34 @@ THREE.TrackballControls = function ( object, domElement ) {
 
 	};
 
+    this.setCameraRotation = function(quaternion) {
+        _eye.applyQuaternion(quaternion);
+        _this.object.up.applyQuaternion( quaternion );
+
+        _rotateEnd.applyQuaternion( quaternion );
+
+        if ( _this.staticMoving ) {
+
+            _rotateStart.copy( _rotateEnd );
+
+        } else {
+
+            quaternion.setFromAxisAngle( axis, angle * ( _this.dynamicDampingFactor - 1.0 ) );
+            _rotateStart.applyQuaternion( quaternion );
+
+        }
+    };
+
+    this.getLookAt = function() {
+        //Get lookat vector
+        return _this.target;
+    };
+
+    this.setLookAt = function(lookAt) {
+        //Set lookat vector
+        _this.target.copy(lookAt);
+    };
+
 	this.zoomCamera = function () {
 
 		if ( _state === STATE.TOUCH_ZOOM ) {
