@@ -332,8 +332,6 @@ VisApp.prototype.reDraw = function() {
 
 VisApp.prototype.createGUI = function() {
     //Create GUI - use dat.GUI for now
-    var main = this;
-
     this.guiControls = new function() {
         this.font = 'Arial';
         this.fontSize = 18;
