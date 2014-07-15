@@ -351,7 +351,7 @@ VisApp.prototype.createGUI = function() {
         this.Ground = '#16283c';
         this.Background = '#5c5f64';
         //Render styles
-        this.RenderStyle = '';
+        this.RenderStyle = 'Cull';
         //Node shapes
         this.NodeStyle = 'Sphere';
     };
@@ -382,9 +382,10 @@ VisApp.prototype.createGUI = function() {
         main.guiChanged();
     });
 
-    this.guiAppear.add(this.guiControls, 'RenderStyle', ['Cull', 'Colour', 'Transparent']).onChange(function(value) {
+    var renderStyle = this.guiAppear.add(this.guiControls, 'RenderStyle', ['Cull', 'Colour', 'Transparent']).onChange(function(value) {
         main.styleChanged(value);
     });
+    renderStyle.listen();
 
     this.guiAppear.add(this.guiControls, 'NodeStyle', ['Sphere', 'Cube', 'Diamond']).onChange(function(value) {
         main.updateRequired = true;
@@ -723,17 +724,19 @@ VisApp.prototype.generateGUIControls = function() {
             this.yearMin =  min;
             this.guiControls.Year = (max-min)/2 + min;
             var yearChange = this.guiData.add(this.guiControls, guiLabels[label].toString(), min, max).step(1);
+            yearChange.listen();
             yearChange.onChange(function(value) {
-                main.guiChanged();
+                main.updateRequired = true;
             });
             //Add slider depth info
             this.guiControls.Selection = 10;
             this.guiControls.ShowSlider = true;
             var selection = this.guiData.add(this.guiControls, 'Selection', 0, (max-min)*2).step(2);
+            selection.listen();
             selection.onChange(function(value) {
-                main.guiChanged();
+                main.updateRequired = true;
             });
-            var timeSlider = this.guiData.add(this.guiControls, 'ShowSlider');
+            var timeSlider = this.guiData.add(this.guiControls, 'ShowSlider').listen();
             timeSlider.onChange(function(value) {
                 main.toggleSlider(value);
             });
@@ -743,7 +746,7 @@ VisApp.prototype.generateGUIControls = function() {
             master[label].splice(0, 0, "");
             var control = this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
             control.onChange(function(value) {
-                main.guiChanged();
+                main.updateRequired = true;
             });
         }
     }
@@ -844,58 +847,94 @@ VisApp.prototype.changeView = function(view) {
     this.camera.lookAt(0, 0, 0);
 };
 
-VisApp.prototype.saveCamPos = function() {
-    //Save camera details
+VisApp.prototype.savePreset = function() {
+    //Save visualisation details
+    if(!this.data) return;
+
     var tempCamPos = new THREE.Vector3().copy(this.camera.position);
     var tempCamRot = new THREE.Quaternion().copy(this.camera.quaternion);
     var tempLookat = new THREE.Vector3().copy(this.controls.getLookAt());
 
-    var camDetails = {pos : tempCamPos, rot : tempCamRot, look : tempLookat};
-    this.camPos.push(camDetails);
+    //Save slider details
+    var showSlider = this.guiControls.ShowSlider;
+    var sliderPos = this.guiControls.Year;
+    var sliderWidth = this.guiControls.Selection;
+    var renderStyle = this.guiControls.RenderStyle;
+
+    var presetDetails = {pos : tempCamPos, rot : tempCamRot, look : tempLookat,
+                         showSlider : showSlider, sliderPos : sliderPos, sliderWidth : sliderWidth, renderStyle : renderStyle};
+
+    this.camPos.push(presetDetails);
 
     //Update preset value
-    updateCamPresets(this.currentCamPos+1, this.camPos.length);
+    updatePresets(this.currentCamPos+1, this.camPos.length);
 };
 
-VisApp.prototype.gotoNextCamPos = function() {
+VisApp.prototype.gotoNextPreset = function() {
     //Go to next cam pos in list if possible
     if(this.camPos.length < 0) return;
 
     if(this.currentCamPos >= this.camPos.length-1) return;
 
     ++this.currentCamPos;
-    var camDetails = this.camPos[this.currentCamPos];
+    var presetDetails = this.camPos[this.currentCamPos];
 
+    //Camera details
     this.controls.reset();
-    this.controls.setCameraRotation(camDetails.rot);
-    this.camera.position.set(camDetails.pos.x, camDetails.pos.y, camDetails.pos.z);
-    this.controls.setLookAt(camDetails.look);
+    this.controls.setCameraRotation(presetDetails.rot);
+    this.camera.position.set(presetDetails.pos.x, presetDetails.pos.y, presetDetails.pos.z);
+    this.controls.setLookAt(presetDetails.look);
+
+    //Slider details
+    this.guiControls.ShowSlider = presetDetails.showSlider;
+    this.toggleSlider(presetDetails.showSlider);
+    this.guiControls.Year = presetDetails.sliderPos;
+    this.guiControls.Selection = presetDetails.sliderWidth;
+    this.guiControls.RenderStyle = presetDetails.renderStyle;
+    this.styleChanged(presetDetails.renderStyle);
+    this.updateRequired = true;
 
     //Update preset value
-    updateCamPresets(this.currentCamPos+1, this.camPos.length);
+    updatePresets(this.currentCamPos+1, this.camPos.length);
 };
 
-VisApp.prototype.gotoPreviousCamPos = function() {
+VisApp.prototype.gotoPreviousPreset = function() {
     //Go to previous cam pos if possible
     if(this.camPos.length < 0) return;
 
-    if(this.currentCamPos <= 0) return;
+    if(this.currentCamPos <= 0) {
+        if(this.currentCamPos == 0 && this.camPos.length == 1) {
+            this.currentCamPos = 1;
+        } else {
+            return;
+        }
+    }
 
     --this.currentCamPos;
-    var camDetails = this.camPos[this.currentCamPos];
+    var presetDetails = this.camPos[this.currentCamPos];
 
+    //Camera details
     this.controls.reset();
-    this.controls.setCameraRotation(camDetails.rot);
-    this.camera.position.set(camDetails.pos.x, camDetails.pos.y, camDetails.pos.z);
-    this.controls.setLookAt(camDetails.look);
+    this.controls.setCameraRotation(presetDetails.rot);
+    this.camera.position.set(presetDetails.pos.x, presetDetails.pos.y, presetDetails.pos.z);
+    this.controls.setLookAt(presetDetails.look);
+
+    //Slider details
+    this.guiControls.ShowSlider = presetDetails.showSlider;
+    this.toggleSlider(presetDetails.showSlider);
+    this.guiControls.Year = presetDetails.sliderPos;
+    this.guiControls.Selection = presetDetails.sliderWidth;
+    this.guiControls.RenderStyle = presetDetails.renderStyle;
+    this.styleChanged(presetDetails.renderStyle);
+    this.updateRequired = true;
 
     //Update preset value
-    updateCamPresets(this.currentCamPos+1, this.camPos.length);
+    updatePresets(this.currentCamPos+1, this.camPos.length);
 };
 
-function updateCamPresets(preset, total) {
+function updatePresets(preset, total) {
     if(preset < 1) preset = '*';
-    document.getElementById('camPresetNum').innerHTML = 'Preset : ' + preset + '/' + total;
+    document.getElementById('presetNum').innerHTML = 'Preset :  ' + preset + '/' + total;
 }
 
 VisApp.prototype.updateInfoPanel = function(year, duration, objects) {
@@ -1077,14 +1116,14 @@ $(document).ready(function() {
         app.changeView(TOP);
     });
 
-    $("#camSave").on("click", function(evt) {
-        app.saveCamPos();
+    $("#presetSave").on("click", function(evt) {
+        app.savePreset();
     });
-    $("#camForward").on("click", function(evt) {
-        app.gotoNextCamPos();
+    $("#presetForward").on("click", function(evt) {
+        app.gotoNextPreset();
     });
-    $("#camBackward").on("click", function(evt) {
-        app.gotoPreviousCamPos();
+    $("#presetBackward").on("click", function(evt) {
+        app.gotoPreviousPreset();
     });
 
     $('#screen').on("click", function(event) {
