@@ -30,15 +30,18 @@ BaseApp.prototype.init = function(container) {
 };
 
 BaseApp.prototype.createRenderer = function() {
-    this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true});
+    this.renderer = new THREE.WebGLRenderer({preserveDrawingBuffer: true, antialias: true});
     this.renderer.setClearColor(0x5c5f64, 1.0);
     this.renderer.shadowMapEnabled = true;
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.container.appendChild( this.renderer.domElement );
-    var self = this;
+    var _this = this;
 
     this.container.addEventListener('mousedown', function(event) {
-        self.mouseClicked(event);
+        _this.mouseClicked(event);
+    }, false);
+    window.addEventListener('resize', function(event) {
+        _this.windowResize(event);
     }, false);
 };
 
@@ -55,6 +58,15 @@ BaseApp.prototype.mouseClicked = function(event) {
 
     this.pickedObjects.length = 0;
     this.pickedObjects = raycaster.intersectObjects(this.scene.children, true);
+};
+
+BaseApp.prototype.windowResize = function(event) {
+    //Handle window resize
+    this.camera.aspect = window.innerWidth / window.innerHeight;
+    this.camera.updateProjectionMatrix();
+
+    this.renderer.setSize( window.innerWidth , window.innerHeight );
+    //console.log('Size =', )
 };
 
 BaseApp.prototype.createScene = function() {
@@ -98,15 +110,9 @@ BaseApp.prototype.update = function() {
     this.mouse.clicked = false;
 };
 
-BaseApp.prototype.run = function(timestamp) {
-    //Calculate elapsed time
-    if (this.startTime === null) {
-        this.startTime = timestamp;
-    }
-    this.elapsedTime = timestamp - this.startTime;
-
+BaseApp.prototype.run = function() {
     this.renderer.render( this.scene, this.camera );
-    var self = this;
+    var _this = this;
     this.update();
-    requestAnimationFrame(function(timestamp) { self.run(timestamp); });
+    requestAnimationFrame(function() { _this.run(); });
 };

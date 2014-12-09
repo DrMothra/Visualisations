@@ -188,7 +188,7 @@ VisApp.prototype.update = function() {
             if (this.updateRequired) {
                 //Set slider position
                 if(this.sliderEnabled) {
-                    var pos = (this.guiControls.Year - this.yearMin) / (this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH / 2;
+                    var pos = (this.guiControls.year - this.yearMin) / (this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH / 2;
                     slider.position.z = pos;
                     //Alter slider width accordingly
                     var box = this.scene.getObjectByName('timeSlider', true);
@@ -200,7 +200,7 @@ VisApp.prototype.update = function() {
                 }
                 //Update GUI
                 this.reDraw();
-                this.updateInfoPanel(this.guiControls.Year, this.guiControls.Selection, this.nodesInSlider);
+                this.updateInfoPanel(this.guiControls.year, this.guiControls.Selection, this.nodesInSlider);
                 this.updateRequired = false;
             }
         }
@@ -509,12 +509,12 @@ VisApp.prototype.generateData = function() {
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
-        var embed = item["Bodily Embeddedness"];
-        var recip = item["Bodily Reciprocity"];
-        var year = item["Year"];
+        var embed = item["bodily embeddedness"];
+        var recip = item["bodily reciprocity"];
+        var year = item["year"];
         var diff = this.guiControls.Selection/2;
-        var minYear = this.guiControls.Year - diff;
-        var maxYear = this.guiControls.Year + diff;
+        var minYear = this.guiControls.year - diff;
+        var maxYear = this.guiControls.year + diff;
         var renderState = RENDER_NORMAL;
         var renderStyle = this.renderStyle; //RENDER_TRANSPARENT;
         //DEBUG
@@ -549,15 +549,15 @@ VisApp.prototype.generateData = function() {
             var nodeMaterial = renderState == RENDER_NORMAL ? defaultMaterial : renderStyle == RENDER_COLOUR ? colourMaterial : transparentMaterial;
             //var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
             var node = new THREE.Mesh(nodeGeometry, nodeMaterial);
-            node.position.x = item["Bodily Embeddedness"] * 1.5 - 75;
-            node.position.y = item["Bodily Reciprocity"] - 50;
-            node.position.z = this.sliderEnabled ? (item["Year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
+            node.position.x = item["bodily embeddedness"] * 1.5 - 75;
+            node.position.y = item["bodily reciprocity"] - 50;
+            node.position.z = this.sliderEnabled ? (item["year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
             var labelPos = new THREE.Vector3();
             labelPos.x = node.position.x;
             labelPos.y = node.position.y;
             labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
             //Give node a name
-            node.name = 'Node ' + item["Project name"];
+            node.name = 'Node ' + item["project name"];
             ++this.nodesRendered;
             nodes.push(node);
             this.scene.add(node);
@@ -578,7 +578,7 @@ VisApp.prototype.getDataItem = function(name) {
     //Get data given name
     for(var i=0; i<this.data.length; ++i) {
         var item = this.data[i];
-        if(item["Project name"] === name) {
+        if(item["project name"] === name) {
             return item;
         }
     }
@@ -664,41 +664,34 @@ VisApp.prototype.generateGUIControls = function() {
     //Add filename to gui
     this.guiControls.filename = this.filename;
 
-    //Generate a gui control from each property of the input file
-    var ignoreList = ["Project name", "Series Label", "Bodily Embeddedness", "Bodily Reciprocity"];
-
     //Get UI controls to add
+    var i, index;
     var guiLabels = Object.keys(this.data[0]);
-    for(var i=0; i<ignoreList.length; ++i) {
-        var index = guiLabels.indexOf(ignoreList[i]);
-        if (index >= 0) {
-            guiLabels.splice(index, 1);
-        }
-    }
+    this.xAxisName = guiLabels[guiLabels.length-2];
+    this.yAxisName = guiLabels[guiLabels.length-1];
+    guiLabels.splice(guiLabels.length-2, 2);
 
     var extraGui = {};
-    for(var i=0; i<guiLabels.length; ++i) {
+    for(i=0; i<guiLabels.length; ++i) {
         extraGui[guiLabels[i]] = "";
     }
 
     //Create master and sub arrays
-    var master = new Array();
+    var master = new Array(guiLabels.length);
+    var size = this.data[0].length;
+    //var sub;
     for(var lists=0; lists<guiLabels.length; ++lists) {
-        var sub = new Array();
+        var sub = new Array(size);
         master.push(sub);
     }
 
     //Populate arrays with relevant values
-    var x=0, i=0;
-    var index;
+    var x=0;
+    i=0;
     var elements = this.data.length;
     while(elements--) {
         var item = this.data[i];
         for(var key in item) {
-            index = ignoreList.indexOf(key);
-            if(index >=0) {
-                continue;
-            }
             master[x++][i] = item[key];
         }
         x=0;
@@ -710,7 +703,7 @@ VisApp.prototype.generateGUIControls = function() {
         master[arr] = eliminateInvalidCells(master[arr]);
     }
 
-    var main = this;
+    var _this = this;
     this.guiControls.extra = extraGui;
     for(var label=0; label<guiLabels.length; ++label) {
         if(typeof(master[label][0]) === 'number') {
@@ -720,11 +713,11 @@ VisApp.prototype.generateGUIControls = function() {
             var min = master[label][0];
             this.yearMax = max;
             this.yearMin =  min;
-            this.guiControls.Year = (max-min)/2 + min;
+            this.guiControls.year = (max-min)/2 + min;
             var yearChange = this.guiData.add(this.guiControls, guiLabels[label].toString(), min, max).step(1);
             yearChange.listen();
             yearChange.onChange(function(value) {
-                main.updateRequired = true;
+                _this.updateRequired = true;
             });
             //Add slider depth info
             this.guiControls.Selection = 10;
@@ -732,11 +725,11 @@ VisApp.prototype.generateGUIControls = function() {
             var selection = this.guiData.add(this.guiControls, 'Selection', 0, (max-min)*2).step(2);
             selection.listen();
             selection.onChange(function(value) {
-                main.updateRequired = true;
+                _this.updateRequired = true;
             });
             var timeSlider = this.guiData.add(this.guiControls, 'ShowSlider').listen();
             timeSlider.onChange(function(value) {
-                main.toggleSlider(value);
+                _this.toggleSlider(value);
             });
         }
         else {
@@ -744,7 +737,7 @@ VisApp.prototype.generateGUIControls = function() {
             master[label].splice(0, 0, "");
             var control = this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
             control.onChange(function(value) {
-                main.updateRequired = true;
+                _this.updateRequired = true;
             });
         }
     }
@@ -752,11 +745,11 @@ VisApp.prototype.generateGUIControls = function() {
     var displayLabels = guiLabels;
     displayLabels.splice(0, 0, '', 'Project name');
     this.guiAppear.add(this.guiControls, 'LabelTop', displayLabels).onChange(function(value) {
-        main.updateRequired = true;
+        _this.updateRequired = true;
     });
 
     this.guiAppear.add(this.guiControls, 'LabelBottom', displayLabels).onChange(function(value) {
-        main.updateRequired = true;
+        _this.updateRequired = true;
     });
 };
 
@@ -777,12 +770,12 @@ VisApp.prototype.parseFile = function() {
     console.log("Reading file...");
 
     var reader = new FileReader();
-    var self = this;
+    var _this = this;
     reader.onload = function(evt) {
         //File loaded - parse it
         console.log('file read: '+evt.target.result);
         try {
-            self.data = JSON.parse(evt.target.result);
+            _this.data = JSON.parse(evt.target.result);
         }
         catch (err) {
             console.log('error parsing JSON file', err);
@@ -790,9 +783,9 @@ VisApp.prototype.parseFile = function() {
             return;
         }
         //File parsed OK - generate GUI controls and data
-        self.generateGUIControls();
-        self.generateData();
-        self.updateRequired = true;
+        _this.generateGUIControls();
+        _this.generateData();
+        _this.updateRequired = true;
     };
 
     // Read in the file
@@ -855,7 +848,7 @@ VisApp.prototype.savePreset = function() {
 
     //Save slider details
     var showSlider = this.guiControls.ShowSlider;
-    var sliderPos = this.guiControls.Year;
+    var sliderPos = this.guiControls.year;
     var sliderWidth = this.guiControls.Selection;
     var renderStyle = this.guiControls.RenderStyle;
 
@@ -886,7 +879,7 @@ VisApp.prototype.gotoNextPreset = function() {
     //Slider details
     this.guiControls.ShowSlider = presetDetails.showSlider;
     this.toggleSlider(presetDetails.showSlider);
-    this.guiControls.Year = presetDetails.sliderPos;
+    this.guiControls.year = presetDetails.sliderPos;
     this.guiControls.Selection = presetDetails.sliderWidth;
     this.guiControls.RenderStyle = presetDetails.renderStyle;
     this.styleChanged(presetDetails.renderStyle);
@@ -920,7 +913,7 @@ VisApp.prototype.gotoPreviousPreset = function() {
     //Slider details
     this.guiControls.ShowSlider = presetDetails.showSlider;
     this.toggleSlider(presetDetails.showSlider);
-    this.guiControls.Year = presetDetails.sliderPos;
+    this.guiControls.year = presetDetails.sliderPos;
     this.guiControls.Selection = presetDetails.sliderWidth;
     this.guiControls.RenderStyle = presetDetails.renderStyle;
     this.styleChanged(presetDetails.renderStyle);
