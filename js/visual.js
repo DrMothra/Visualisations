@@ -19,7 +19,7 @@ function eliminateDuplicates(arr) {
 }
 */
 
-function getDuplicates(arr) {
+function getDuplicates(arr, xAxis, yAxis) {
     //Get frequency of required members
     var dupes = [];
     for(var i=0; i<arr.length; ++i) {
@@ -28,10 +28,10 @@ function getDuplicates(arr) {
             if(i == j) continue;
 
             var currentItem = arr[j];
-            if(item["Bodily Embeddedness"] == currentItem["Bodily Embeddedness"] &&
-                    item["Bodily Reciprocity"] == currentItem["Bodily Reciprocity"]) {
-                dupes.push(item["Bodily Embeddedness"]);
-                dupes.push(item["Bodily Reciprocity"]);
+            if(item[xAxis] == currentItem[xAxis] &&
+                    item[yAxis] == currentItem[yAxis]) {
+                dupes.push(item[xAxis]);
+                dupes.push(item[yAxis]);
             }
         }
     }
@@ -339,7 +339,7 @@ VisApp.prototype.createGUI = function() {
         this.scaleY = 5;
         this.filename = '';
         this.ShowLabels = true;
-        this.LabelTop = 'Project name';
+        this.LabelTop = '';
         this.LabelBottom = '';
 
         //Colours
@@ -456,9 +456,9 @@ VisApp.prototype.analyseItem = function(item, updatedData) {
     //Analyse this item and adjust appearance accordingly
     var update = null;
     //See if item in updated data
-    var key = item["Bodily Embeddedness"];
+    var key = item[this.xAxisName];
     if(key in updatedData) {
-        var freq = updatedData[key][item["Bodily Reciprocity"]];
+        var freq = updatedData[key][item[this.yAxisName]];
         if (freq != undefined) {
             update = { material: new THREE.MeshPhongMaterial({color: 0xff0000}),
                 position: -freq * 10};
@@ -469,7 +469,7 @@ VisApp.prototype.analyseItem = function(item, updatedData) {
 
 VisApp.prototype.analyseData = function() {
     //Analyse data and configure accordingly
-    var dupes = getDuplicates(this.data);
+    var dupes = getDuplicates(this.data, this.xAxisName, this.yAxisName);
 
     return dupes;
 };
@@ -509,9 +509,9 @@ VisApp.prototype.generateData = function() {
     for(var i=0; i<this.data.length; ++i) {
         //Only render nodes with valid embed and recip
         var item = this.data[i];
-        var embed = item["bodily embeddedness"];
-        var recip = item["bodily reciprocity"];
-        var year = item["year"];
+        var embed = item[this.xAxisName];
+        var recip = item[this.yAxisName];
+        var year = item[this.timeAxis];
         var diff = this.guiControls.Selection/2;
         var minYear = this.guiControls.year - diff;
         var maxYear = this.guiControls.year + diff;
@@ -549,15 +549,15 @@ VisApp.prototype.generateData = function() {
             var nodeMaterial = renderState == RENDER_NORMAL ? defaultMaterial : renderStyle == RENDER_COLOUR ? colourMaterial : transparentMaterial;
             //var node = new THREE.Mesh(sphereGeometry, updateRequired ? updateRequired.material : material);
             var node = new THREE.Mesh(nodeGeometry, nodeMaterial);
-            node.position.x = item["bodily embeddedness"] * 1.5 - 75;
-            node.position.y = item["bodily reciprocity"] - 50;
-            node.position.z = this.sliderEnabled ? (item["year"]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
+            node.position.x = item[this.xAxisName] * 1.5 - 75;
+            node.position.y = item[this.yAxisName] - 50;
+            node.position.z = this.sliderEnabled ? (item[this.timeAxis]-this.yearMin)/(this.yearMax - this.yearMin) * this.GROUND_DEPTH - this.GROUND_DEPTH/2 : 0;
             var labelPos = new THREE.Vector3();
             labelPos.x = node.position.x;
             labelPos.y = node.position.y;
             labelPos.z = this.sliderEnabled ? node.position.z : updateRequired ? visited[embed][recip] * -5 : 0;
             //Give node a name
-            node.name = 'Node ' + item["project name"];
+            node.name = 'Node ' + item[this.tempName];
             ++this.nodesRendered;
             nodes.push(node);
             this.scene.add(node);
@@ -669,6 +669,8 @@ VisApp.prototype.generateGUIControls = function() {
     var guiLabels = Object.keys(this.data[0]);
     this.xAxisName = guiLabels[guiLabels.length-2];
     this.yAxisName = guiLabels[guiLabels.length-1];
+    this.timeAxis = 'year';
+    this.tempName = guiLabels[0];
     guiLabels.splice(guiLabels.length-2, 2);
 
     var extraGui = {};
@@ -677,26 +679,29 @@ VisApp.prototype.generateGUIControls = function() {
     }
 
     //Create master and sub arrays
-    var master = new Array(guiLabels.length);
-    var size = this.data[0].length;
-    //var sub;
-    for(var lists=0; lists<guiLabels.length; ++lists) {
-        var sub = new Array(size);
-        master.push(sub);
+    var numRecords = this.data.length;
+    var numAttribs = guiLabels.length;
+    var master = new Array(numAttribs);
+
+    for(var lists=0; lists<numAttribs; ++lists) {
+        master[lists] = [];
     }
 
     //Populate arrays with relevant values
     var x=0;
     i=0;
-    var elements = this.data.length;
-    while(elements--) {
-        var item = this.data[i];
+    var item;
+    for(var elem=0; elem<numRecords; ++elem) {
+        item = this.data[elem];
         for(var key in item) {
+            //Don't include x or y axis names
+            if(key == this.xAxisName || key == this.yAxisName) continue;
             master[x++][i] = item[key];
         }
-        x=0;
         ++i;
+        x=0;
     }
+
     //Eliminate duplicates
     for(var arr=0; arr<master.length; ++arr) {
         master[arr] = eliminateDuplicates(master[arr]);
@@ -706,7 +711,7 @@ VisApp.prototype.generateGUIControls = function() {
     var _this = this;
     this.guiControls.extra = extraGui;
     for(var label=0; label<guiLabels.length; ++label) {
-        if(typeof(master[label][0]) === 'number') {
+        if(guiLabels[label] == this.timeAxis) {
             master[label].sort();
             //Assume this is time-based data
             var max = master[label][master[label].length-1];
@@ -735,15 +740,22 @@ VisApp.prototype.generateGUIControls = function() {
         else {
             //Add empty value for default
             master[label].splice(0, 0, "");
+            //Add ignore option
+            master[label].splice(master[label].length, 0, 'ignore');
             var control = this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
             control.onChange(function(value) {
+                if(value == 'ignore') {
+                    //Remove this attribute from gui
+                    _this.guiData.remove(guiLabels[label].toString());
+                }
                 _this.updateRequired = true;
             });
         }
     }
     //Labelling
     var displayLabels = guiLabels;
-    displayLabels.splice(0, 0, '', 'Project name');
+    displayLabels.splice(0, 0, '');
+    //displayLabels.splice(0, 0, '', 'Project name');
     this.guiAppear.add(this.guiControls, 'LabelTop', displayLabels).onChange(function(value) {
         _this.updateRequired = true;
     });
