@@ -164,6 +164,7 @@ VisApp.prototype.init = function(container) {
     //Always have appearance and data folders to gui
     this.guiAppear = null;
     this.guiData = null;
+    this.guiDeleted = null;
     //Time slider
     this.sliderPos = 0;
     //Rendering style
@@ -199,6 +200,21 @@ VisApp.prototype.update = function() {
                     slider.position.z = 0;
                 }
                 //Update GUI
+                //Remove any attributes if required
+                var guiExtra = this.guiControls.extra;
+                var controllers = this.guiData.__controllers;
+                for(var key in guiExtra) {
+                    if(guiExtra[key] == 'discard') {
+                        console.log('Discarding ', key);
+                        delete guiExtra[key];
+                        for(var i=0; i<controllers.length; ++i) {
+                            if(controllers[i].property == key) {
+                                this.guiData.remove(controllers[i]);
+                                break;
+                            }
+                        }
+                    }
+                }
                 this.reDraw();
                 this.updateInfoPanel(this.guiControls.year, this.guiControls.Selection, this.nodesInSlider);
                 this.updateRequired = false;
@@ -408,6 +424,7 @@ VisApp.prototype.createGUI = function() {
         main.labelChanged(value);
     });
     this.guiData = gui.addFolder("Data");
+    this.guiDeleted = gui.addFolder('Discarded');
     this.gui = gui;
 };
 
@@ -741,17 +758,20 @@ VisApp.prototype.generateGUIControls = function() {
             //Add empty value for default
             master[label].splice(0, 0, "");
             //Add ignore option
-            master[label].splice(master[label].length, 0, 'ignore');
+            master[label].splice(master[label].length, 0, 'discard');
             var control = this.guiData.add(this.guiControls.extra, guiLabels[label].toString(), master[label]);
             control.onChange(function(value) {
-                if(value == 'ignore') {
-                    //Remove this attribute from gui
-                    _this.guiData.remove(guiLabels[label].toString());
-                }
                 _this.updateRequired = true;
-            });
+            })
         }
     }
+
+    //DEBUG
+    //console.log('Object =', this.guiData.__controllers);
+    //var controller = this.guiData.__controllers[0];
+    //this.guiDeleted.add(controller);
+    //this.guiData.remove(controller);
+
     //Labelling
     var displayLabels = guiLabels;
     displayLabels.splice(0, 0, '');
@@ -962,6 +982,7 @@ VisApp.prototype.reset = function() {
     this.guiControls = null;
     this.guiAppear = null;
     this.guiData = null;
+    this.guiDeleted = null;
     this.gui.destroy();
     this.renderStyle = RENDER_CULL;
     this.createGUI();
