@@ -164,7 +164,7 @@ VisApp.prototype.init = function(container) {
     //Always have appearance and data folders to gui
     this.guiAppear = null;
     this.guiData = null;
-    this.guiDeleted = null;
+    this.guiDiscarded = null;
     //Time slider
     this.sliderPos = 0;
     //Rendering style
@@ -205,8 +205,11 @@ VisApp.prototype.update = function() {
                 var controllers = this.guiData.__controllers;
                 for(var key in guiExtra) {
                     if(guiExtra[key] == 'discard') {
-                        console.log('Discarding ', key);
                         delete guiExtra[key];
+                        this.guiControls.Attribute.push(key);
+                        this.guiDiscarded.__controllers[0].updateDisplay();
+                        //this.guiDiscarded.add(this.guiControls, 'Attribute', this.discardedItems);
+                        console.log('Discard items =', key);
                         for(var i=0; i<controllers.length; ++i) {
                             if(controllers[i].property == key) {
                                 this.guiData.remove(controllers[i]);
@@ -368,6 +371,8 @@ VisApp.prototype.createGUI = function() {
         this.RenderStyle = 'Cull';
         //Node shapes
         this.NodeStyle = 'Sphere';
+        //Discarded
+        this.Attribute = [];
     };
 
     var gui = new dat.GUI();
@@ -424,7 +429,7 @@ VisApp.prototype.createGUI = function() {
         main.labelChanged(value);
     });
     this.guiData = gui.addFolder("Data");
-    this.guiDeleted = gui.addFolder('Discarded');
+    this.guiDiscarded = gui.addFolder('Discarded');
     this.gui = gui;
 };
 
@@ -783,6 +788,10 @@ VisApp.prototype.generateGUIControls = function() {
     this.guiAppear.add(this.guiControls, 'LabelBottom', displayLabels).onChange(function(value) {
         _this.updateRequired = true;
     });
+
+    //Discarded attributes
+    this.discardedItems = [''];
+    this.guiDiscarded.add(this.guiControls, 'Attribute', ['']).listen();
 };
 
 VisApp.prototype.toggleSlider = function(slider) {
