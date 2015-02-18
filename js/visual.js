@@ -830,6 +830,7 @@ VisApp.prototype.parseFile = function() {
     };
 
     // Read in the file
+
     reader.readAsText(this.dataFile, 'ISO-8859-1');
 };
 
