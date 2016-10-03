@@ -1,0 +1,35 @@
+/* Framework styles */
+
+#WebGL-output {
+    /* set margin to 0 and overflow to hidden, to go fullscreen */
+    margin: 0;
+    overflow: hidden;
+}
+
+.noDisplay {
+    display: none;
+}
+.infoPanel {
+    position: absolute;
+}
+#info {
+    top: 30%;
+    right: 15%;
+    background-color: #284f9c;
+    padding: 2%;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 1.8vw;
+    font-family: Arial;
+}
+.infoButton {
+    margin-left: 33%;
+    width: 25%;
+}
+.dg .c input[type=text] {
+
+    line-height:normal;
+}
+.dg .c div {
+    box-sizing: content-box;
+}
